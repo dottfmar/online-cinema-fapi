@@ -1,4 +1,3 @@
-import asyncio
 import os
 from logging.config import fileConfig
 
@@ -21,13 +20,15 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 config.set_main_option("sqlalchemy.url", os.getenv("ASYNC_DATABASE_URL"))
+print("ASYNC_DATABASE_URL:", os.getenv("ASYNC_DATABASE_URL"))
+
 
 # add your model's MetaData object here
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
 target_metadata = Base.metadata
-
+print(target_metadata.tables.keys())
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
@@ -70,24 +71,22 @@ def run_migrations_online() -> None:
         poolclass=pool.NullPool,
     )
 
-    # Asynchronous function for performing migrations
     async def do_run_migrations():
-        # Opening the connection
         async with connectable.connect() as connection:
-            # Perform migrations synchronously
             await connection.run_sync(do_run_migrations_sync)
 
-    # Running the asynchronous function
+    import asyncio
+
     asyncio.run(do_run_migrations())
 
 
 def do_run_migrations_sync(connection):
-    # Set up the migration context
     context.configure(
         connection=connection,
-        target_metadata=target_metadata,  # Make sure you have target_metadata
+        target_metadata=target_metadata,
+        compare_type=True,
+        render_as_batch=True,
     )
-    # Starting a transaction for migrations
     with context.begin_transaction():
         context.run_migrations()
 

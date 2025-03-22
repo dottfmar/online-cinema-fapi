@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 from typing import Any
 
+from pydantic import PostgresDsn
 from pydantic_settings import BaseSettings
 
 
@@ -44,6 +45,12 @@ class Settings(BaseAppSettings):
     POSTGRES_HOST: str = os.getenv("POSTGRES_HOST", "test_host")
     POSTGRES_DB_PORT: int = int(os.getenv("POSTGRES_DB_PORT", 5432))
     POSTGRES_DB: str = os.getenv("POSTGRES_DB", "test_db")
+
+    DATABASE_URL: PostgresDsn = os.getenv(
+        "DATABASE_URL",
+        "postgresql://cinema_owner:npg_1ONjELgF6sry@ep-calm-cell-"
+        "a2y1mtn0-pooler.eu-central-1.aws.neon.tech/cinema?sslmode=require",
+    )
 
     SECRET_KEY_ACCESS: str = os.getenv("SECRET_KEY_ACCESS", str(os.urandom(32)))
     SECRET_KEY_REFRESH: str = os.getenv("SECRET_KEY_REFRESH", str(os.urandom(32)))

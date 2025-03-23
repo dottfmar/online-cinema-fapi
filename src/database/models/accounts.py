@@ -1,5 +1,6 @@
 # isort: skip_file
 
+from __future__ import annotations
 import enum
 from datetime import date, datetime, timedelta, timezone
 from typing import List, Optional
@@ -18,13 +19,10 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
-from database.models.cart import CartModel
-from database.models.payments import PaymentModel
-from database.models.order import OrderModel
-from database.models.base import Base
-from security.passwords import hash_password, verify_password
-from security.utils import generate_secure_token
-from validators import accounts as validators
+from src.database.models.base import Base
+from src.security.passwords import hash_password, verify_password
+from src.security.utils import generate_secure_token
+from src.validators import accounts as validators
 
 
 class UserGroupEnum(str, enum.Enum):
@@ -96,14 +94,14 @@ class UserModel(Base):
         "UserProfileModel", back_populates="user", cascade="all, delete-orphan"
     )
 
-    cart: Mapped[Optional["CartModel"]] = relationship(
+    cart: Mapped[Optional["CartModel"]] = relationship(  # noqa: F821
         "CartModel", back_populates="user", uselist=False, cascade="all, delete-orphan"
     )
-    orders: Mapped[List["OrderModel"]] = relationship(
+    orders: Mapped[List["OrderModel"]] = relationship(  # noqa: F821
         "OrderModel", back_populates="user"
     )
 
-    payments: Mapped[Optional["PaymentModel"]] = relationship(
+    payments: Mapped[Optional["PaymentModel"]] = relationship(  # noqa: F821
         "PaymentModel", back_populates="user", cascade="all, delete-orphan"
     )
 

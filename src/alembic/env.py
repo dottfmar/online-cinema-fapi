@@ -3,17 +3,17 @@
 import os
 from logging.config import fileConfig
 
+
 from dotenv import load_dotenv
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from alembic import context
-from src.database.models import base  # noqa: F401
-from src.database.models import *  # noqa: F401, F403
+
+# from src.database import UserModel  # noqa: F401
+import src.database  # noqa: F401
 from src.database.models.base import Base
 
-# from src.database.models.movies import * # noqa: F401
-# from src.database.models.cart import * # noqa: F401
 
 load_dotenv()
 

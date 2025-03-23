@@ -1,9 +1,11 @@
+# isort: skip_file
+
 from datetime import datetime
 from enum import Enum
 
 from sqlalchemy import DECIMAL, DateTime
 from sqlalchemy import Enum as SQLAlchemyEnum
-from sqlalchemy import ForeignKey, func
+from sqlalchemy import ForeignKey, Integer, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.database.models.accounts import UserModel
@@ -20,7 +22,7 @@ class OrderStatusEnum(str, Enum):
 class OrderModel(Base):
     __tablename__ = "orders"
 
-    id: Mapped[int] = mapped_column(primary_key=True, auto_increment=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
 
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False
@@ -39,10 +41,9 @@ class OrderModel(Base):
     total_amount: Mapped[DECIMAL] = mapped_column(DECIMAL(10, 2), nullable=True)
 
     order_items: Mapped[list["OrderItemModel"]] = relationship(
-        "OrderItemModel",
-        back_populates="order",
+        "OrderItemModel", back_populates="order", cascade="all, delete-orphan"
     )
 
     @classmethod
     def default_order_by(cls):
-        return [cls.created_at.desc()]
+        return cls.created_at.desc()

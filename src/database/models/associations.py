@@ -1,5 +1,3 @@
-# isort: skip_file
-
 from sqlalchemy import Column, ForeignKey, Table
 
 from src.database.models.base import Base

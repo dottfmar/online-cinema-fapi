@@ -1,19 +1,23 @@
-from sqlalchemy import Column, ForeignKey, Integer
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, ForeignKey, Integer, UniqueConstraint
+from sqlalchemy.orm import Mapped, relationship
 
-Base = declarative_base()
+from database.models.accounts import UserModel
+from database.models.base import Base
+from database.models.cart_item import CartItemModel
 
 
-class Cart(Base):
+class CartModel(Base):
     __tablename__ = "carts"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
+    id: Mapped[int] = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id: Mapped[int] = Column(
+        Integer, ForeignKey("users.id"), unique=True, nullable=False
+    )
 
-    user = relationship("User", back_populates="cart", uselist=False)
+    user: Mapped["UserModel"] = relationship("UserModel", back_populates="cart")
 
-    shopping_cart = relationship("ShoppingCart", back_populates="cart")
+    items: Mapped["CartItemModel"] = relationship(
+        "CartItemModel", back_populates="cart", cascade="all, delete-orphan"
+    )
 
-    def __repr__(self):
-        return f"<Cart(id={self.id}, user_id={self.user_id})>"
+    __table_args__ = (UniqueConstraint("user_id", name="uq_user_cart"),)

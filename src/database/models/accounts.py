@@ -18,6 +18,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
+from database.models.cart import CartModel
 from src.database.models.base import Base
 from src.security.passwords import hash_password, verify_password
 from src.security.utils import generate_secure_token
@@ -91,6 +92,10 @@ class UserModel(Base):
 
     profile: Mapped[Optional["UserProfileModel"]] = relationship(
         "UserProfileModel", back_populates="user", cascade="all, delete-orphan"
+    )
+
+    cart: Mapped[Optional["CartModel"]] = relationship(
+        "CartModel", back_populates="user", uselist=False, cascade="all, delete-orphan"
     )
 
     def __repr__(self):

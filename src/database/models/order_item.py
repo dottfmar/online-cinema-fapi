@@ -1,5 +1,3 @@
-# isort: skip_file
-
 from sqlalchemy import DECIMAL, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 

@@ -15,6 +15,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from database.models.cart_item import CartItemModel
 from src.database.models.associations import (
     MoviesDirectorsModel,
     MoviesGenresModel,
@@ -59,6 +60,10 @@ class MovieModel(Base):
     )
     directors: Mapped[list["DirectorModel"]] = relationship(
         "DirectorModel", secondary=MoviesDirectorsModel, back_populates="movies"
+    )
+
+    cart_item: Mapped["CartItemModel"] = relationship(
+        "CartItemModel", back_populates="movies"
     )
 
     __table_args__ = (

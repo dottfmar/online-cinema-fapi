@@ -5,13 +5,13 @@ from datetime import datetime
 
 import stripe
 from sqlalchemy import DECIMAL, DateTime, Enum, ForeignKey, Integer, String, func
-from sqlalchemy.orm import Mapped, declarative_base, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from database.models.base import Base
 from src.database.models.accounts import UserModel
 from src.database.models.order import OrderModel
 from src.database.models.order_item import OrderItemModel  # noqa: F401
 
-Base = declarative_base()
 
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
@@ -46,10 +46,12 @@ class PaymentItemModel(Base):
     order_item_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("order_items.id"), nullable=False
     )
-    price_at_payment: Mapped[float] = mapped_column(DECIMAL(10, 2), nullable=False)
+    price_at_payment: Mapped[DECIMAL] = mapped_column(DECIMAL(10, 2), nullable=False)
 
-    payment = relationship("PaymentModel", back_populates="items")
-    order_item = relationship("OrderItemModel")
+    payment: Mapped["PaymentModel"] = relationship(
+        "PaymentModel", back_populates="items"
+    )
+    order_item: Mapped["OrderItemModel"] = relationship("OrderItemModel")
 
     def __repr__(self):
         return f"<PaymentItem(price_at_payment={self.price_at_payment})>"

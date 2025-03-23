@@ -6,6 +6,7 @@ from sqlalchemy import Enum as SQLAlchemyEnum
 from sqlalchemy import ForeignKey, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from database.models.payments import PaymentModel
 from src.database.models.accounts import UserModel
 from src.database.models.base import Base
 from src.database.models.order_item import OrderItemModel
@@ -41,6 +42,10 @@ class OrderModel(Base):
     order_items: Mapped[list["OrderItemModel"]] = relationship(
         "OrderItemModel",
         back_populates="order",
+    )
+
+    payments: Mapped["PaymentModel"] = relationship(
+        "PaymentModel", back_populates="order"
     )
 
     @classmethod

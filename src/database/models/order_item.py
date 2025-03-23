@@ -1,6 +1,7 @@
 from sqlalchemy import DECIMAL, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from database.models.payments import PaymentItemModel
 from src.database.models.base import Base
 from src.database.models.movie import MovieModel
 from src.database.models.order import OrderModel
@@ -22,3 +23,7 @@ class OrderItemModel(Base):
     movie: Mapped[MovieModel] = relationship("MovieModel", back_populates="order_items")
 
     price_at_order: Mapped[DECIMAL] = mapped_column(DECIMAL(10, 2), nullable=False)
+
+    payment_items: Mapped[list["PaymentItemModel"]] = relationship(
+        "PaymentItemModel", back_populates="order_items"
+    )

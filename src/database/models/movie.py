@@ -26,6 +26,7 @@ from src.database.models.certification import CertificationModel
 from src.database.models.director import DirectorModel
 from src.database.models.genre import GenreModel
 from src.database.models.star import StarModel
+from src.database.models.order_item import OrderItemModel
 
 
 class MovieModel(Base):
@@ -64,6 +65,10 @@ class MovieModel(Base):
 
     cart_item: Mapped["CartItemModel"] = relationship(
         "CartItemModel", back_populates="movies"
+    )
+
+    order_items: Mapped[list["OrderItemModel"]] = relationship(
+        "OrderItemModel", back_populates="movie"
     )
 
     __table_args__ = (

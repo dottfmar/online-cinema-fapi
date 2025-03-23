@@ -20,9 +20,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from database.models.cart import CartModel
 from database.models.payments import PaymentModel
-from src.database.models.base import Base
-from src.security.passwords import hash_password, verify_password
-from src.security.utils import generate_secure_token
+from database.models.order import OrderModel
+from database.models.base import Base
+from security.passwords import hash_password, verify_password
+from security.utils import generate_secure_token
 from validators import accounts as validators
 
 
@@ -98,6 +99,9 @@ class UserModel(Base):
     cart: Mapped[Optional["CartModel"]] = relationship(
         "CartModel", back_populates="user", uselist=False, cascade="all, delete-orphan"
     )
+    orders: Mapped[List["OrderModel"]] = relationship(
+        "OrderModel", back_populates="user"
+    )
 
     payments: Mapped[Optional["PaymentModel"]] = relationship(
         "PaymentModel", back_populates="user", cascade="all, delete-orphan"
@@ -112,9 +116,7 @@ class UserModel(Base):
         return self.group.name == group_name
 
     @classmethod
-    def create(
-        cls, email: str, raw_password: str, group_id: int | Mapped[int]
-    ) -> "UserModel":
+    def create(cls, email: str, raw_password: str, group_id: int) -> "UserModel":
         """
         Factory method to create a new UserModel instance.
 
@@ -228,9 +230,7 @@ class RefreshTokenModel(TokenBaseModel):
     )
 
     @classmethod
-    def create(
-        cls, user_id: int | Mapped[int], days_valid: int, token: str
-    ) -> "RefreshTokenModel":
+    def create(cls, user_id: int, days_valid: int, token: str) -> "RefreshTokenModel":
         """
         Factory method to create a new RefreshTokenModel instance.
 

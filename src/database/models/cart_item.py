@@ -1,13 +1,12 @@
 # isort: skip_file
+from __future__ import annotations
 
 import datetime
-
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, relationship
+from src.database.models.base import Base
 
-from database.models.base import Base
-from database.models.cart import CartModel
-from database.models.movie import MovieModel
+# from src.database import CartModel, MovieModel
 
 
 class CartItemModel(Base):
@@ -18,7 +17,11 @@ class CartItemModel(Base):
     movie_id: Mapped[int] = Column(Integer, ForeignKey("movies.id"), nullable=False)
     added_at: Mapped[datetime] = Column(DateTime, default=func.now(), nullable=False)
 
-    cart: Mapped["CartModel"] = relationship("CartModel", back_populates="items")
-    movie: Mapped["MovieModel"] = relationship("MovieModel", back_populates="items")
+    cart: Mapped["CartModel"] = relationship(  # noqa: F821
+        "CartModel", back_populates="items"
+    )  # noqa: F821
+    movie: Mapped["MovieModel"] = relationship(  # noqa: F821
+        "MovieModel", back_populates="items"
+    )  # noqa: F821
 
     __table_args__ = (UniqueConstraint("cart_id", "movie_id", name="uq_cart_movie"),)

@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 from sqlalchemy import Column, ForeignKey, Integer, UniqueConstraint
 from sqlalchemy.orm import Mapped, relationship
 
-from database.models.accounts import UserModel
-from database.models.base import Base
-from database.models.cart_item import CartItemModel
+from src.database.models.base import Base
+
+# from src.database import UserModel, CartItemModel
 
 
 class CartModel(Base):
@@ -14,9 +16,11 @@ class CartModel(Base):
         Integer, ForeignKey("users.id"), unique=True, nullable=False
     )
 
-    user: Mapped["UserModel"] = relationship("UserModel", back_populates="cart")
+    user: Mapped["UserModel"] = relationship(  # noqa: F821
+        "UserModel", back_populates="cart"
+    )
 
-    items: Mapped["CartItemModel"] = relationship(
+    items: Mapped["CartItemModel"] = relationship(  # noqa: F821
         "CartItemModel", back_populates="cart", cascade="all, delete-orphan"
     )
 

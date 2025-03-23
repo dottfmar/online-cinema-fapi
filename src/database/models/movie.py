@@ -1,11 +1,10 @@
 # isort: skip_file
-
+from __future__ import annotations
 import uuid
 from typing import Optional
 
 from sqlalchemy import (
     DECIMAL,
-    UUID,
     Float,
     ForeignKey,
     Integer,
@@ -13,27 +12,17 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from database.models.cart_item import CartItemModel
-from src.database.models.associations import (
-    MoviesDirectorsModel,
-    MoviesGenresModel,
-    StarsMoviesModel,
-)
 from src.database.models.base import Base
-from src.database.models.certification import CertificationModel
-from src.database.models.director import DirectorModel
-from src.database.models.genre import GenreModel
-from src.database.models.star import StarModel
-from src.database.models.order_item import OrderItemModel
 
 
 class MovieModel(Base):
     __tablename__ = "movies"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    uuid: Mapped[uuid.UUID] = mapped_column(
+    uuid: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True), unique=True, default=uuid.uuid4, nullable=False
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -49,25 +38,25 @@ class MovieModel(Base):
     certification_id: Mapped[int] = mapped_column(
         ForeignKey("certifications.id"), nullable=False
     )
-    certification: Mapped["CertificationModel"] = relationship(
+    certification: Mapped["CertificationModel"] = relationship(  # noqa: F821
         "CertificationModel", back_populates="movies"
     )
 
-    genres: Mapped[list["GenreModel"]] = relationship(
-        "GenreModel", secondary=MoviesGenresModel, back_populates="movies"
+    genres: Mapped[list["GenreModel"]] = relationship(  # noqa: F821
+        "GenreModel", secondary="MoviesGenresModel", back_populates="movies"
     )
-    stars: Mapped[list["StarModel"]] = relationship(
-        "StarModel", secondary=StarsMoviesModel, back_populates="movies"
+    stars: Mapped[list["StarModel"]] = relationship(  # noqa: F821
+        "StarModel", secondary="StarsMoviesModel", back_populates="movies"
     )
-    directors: Mapped[list["DirectorModel"]] = relationship(
-        "DirectorModel", secondary=MoviesDirectorsModel, back_populates="movies"
+    directors: Mapped[list["DirectorModel"]] = relationship(  # noqa: F821
+        "DirectorModel", secondary="MoviesDirectorsModel", back_populates="movies"
     )
 
-    cart_item: Mapped["CartItemModel"] = relationship(
+    cart_item: Mapped["CartItemModel"] = relationship(  # noqa: F821
         "CartItemModel", back_populates="movies"
     )
 
-    order_items: Mapped[list["OrderItemModel"]] = relationship(
+    order_items: Mapped[list["OrderItemModel"]] = relationship(  # noqa: F821
         "OrderItemModel", back_populates="movie"
     )
 

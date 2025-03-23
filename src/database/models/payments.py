@@ -1,16 +1,14 @@
 # isort: skip_file
-
+from __future__ import annotations
 import os
 from datetime import datetime
 
 import stripe
 from sqlalchemy import DECIMAL, DateTime, Enum, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from src.database.models.base import Base
 
-from database.models.base import Base
-from src.database.models.accounts import UserModel
-from src.database.models.order import OrderModel
-from src.database.models.order_item import OrderItemModel  # noqa: F401
+# from src.database import UserModel, OrderModel, OrderItemModel
 
 
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
@@ -33,8 +31,12 @@ class PaymentModel(Base):
     amount: Mapped[float] = mapped_column(DECIMAL(10, 2), nullable=False)
     external_payment_id: Mapped[str | None] = mapped_column(String, nullable=True)
 
-    user: Mapped["UserModel"] = relationship("UserModel", back_populates="payments")
-    order: Mapped["OrderModel"] = relationship("OrderModel", back_populates="payments")
+    user: Mapped["UserModel"] = relationship(  # noqa: F821
+        "UserModel", back_populates="payments"
+    )  # noqa: F821
+    order: Mapped["OrderModel"] = relationship(  # noqa: F821
+        "OrderModel", back_populates="payments"
+    )  # noqa: F821
 
 
 class PaymentItemModel(Base):
@@ -51,7 +53,7 @@ class PaymentItemModel(Base):
     payment: Mapped["PaymentModel"] = relationship(
         "PaymentModel", back_populates="items"
     )
-    order_item: Mapped["OrderItemModel"] = relationship("OrderItemModel")
+    order_item: Mapped["OrderItemModel"] = relationship("OrderItemModel")  # noqa: F821
 
     def __repr__(self):
         return f"<PaymentItem(price_at_payment={self.price_at_payment})>"

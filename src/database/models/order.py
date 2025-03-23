@@ -1,5 +1,5 @@
 # isort: skip_file
-
+from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 
@@ -7,11 +7,9 @@ from sqlalchemy import DECIMAL, DateTime
 from sqlalchemy import Enum as SQLAlchemyEnum
 from sqlalchemy import ForeignKey, Integer, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
-from database.models.payments import PaymentModel
-from src.database.models.accounts import UserModel
 from src.database.models.base import Base
-from src.database.models.order_item import OrderItemModel
+
+# from src.database import PaymentModel, UserModel, OrderItemModel
 
 
 class OrderStatusEnum(str, Enum):
@@ -29,7 +27,9 @@ class OrderModel(Base):
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
 
-    user: Mapped["UserModel"] = relationship("UserModel", back_populates="orders")
+    user: Mapped["UserModel"] = relationship(  # noqa: F821
+        "UserModel", back_populates="orders"
+    )  # noqa: F821
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -41,11 +41,11 @@ class OrderModel(Base):
 
     total_amount: Mapped[DECIMAL] = mapped_column(DECIMAL(10, 2), nullable=True)
 
-    order_items: Mapped[list["OrderItemModel"]] = relationship(
+    order_items: Mapped[list["OrderItemModel"]] = relationship(  # noqa: F821
         "OrderItemModel", back_populates="order", cascade="all, delete-orphan"
     )
 
-    payments: Mapped["PaymentModel"] = relationship(
+    payments: Mapped["PaymentModel"] = relationship(  # noqa: F821
         "PaymentModel", back_populates="order"
     )
 

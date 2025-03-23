@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from sqlalchemy import Column, ForeignKey, Table
 
 from src.database.models.base import Base

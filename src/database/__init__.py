@@ -8,6 +8,7 @@ from database.models.accounts import (
     UserGroupModel,
     UserModel,
     UserProfileModel,
+    UserGroupEnum,
 )
 from database.models.associations import (
     MoviesDirectorsModel,
@@ -28,3 +29,5 @@ from database.models.comment import CommentModel
 from database.models.like import LikeModel
 from database.models.favourites import FavoritesModel
 from database.models.rating import RatingModel
+from validators import accounts as accounts_validators
+from database.database_session import get_db

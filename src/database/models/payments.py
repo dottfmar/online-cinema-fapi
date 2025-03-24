@@ -6,7 +6,7 @@ from datetime import datetime
 import stripe
 from sqlalchemy import DECIMAL, DateTime, Enum, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from src.database.models.base import Base
+from database.models.base import Base
 
 # from src.database import UserModel, OrderModel, OrderItemModel
 
@@ -37,6 +37,9 @@ class PaymentModel(Base):
     order: Mapped["OrderModel"] = relationship(  # noqa: F821
         "OrderModel", back_populates="payments"
     )  # noqa: F821
+    items: Mapped["PaymentItemModel"] = relationship(
+        "PaymentItemModel", back_populates="payments"
+    )
 
 
 class PaymentItemModel(Base):
@@ -50,10 +53,10 @@ class PaymentItemModel(Base):
     )
     price_at_payment: Mapped[DECIMAL] = mapped_column(DECIMAL(10, 2), nullable=False)
 
-    payment: Mapped["PaymentModel"] = relationship(
+    payments: Mapped["PaymentModel"] = relationship(
         "PaymentModel", back_populates="items"
     )
-    order_item: Mapped["OrderItemModel"] = relationship("OrderItemModel")  # noqa: F821
+    order_items: Mapped["OrderItemModel"] = relationship("OrderItemModel")  # noqa: F821
 
     def __repr__(self):
         return f"<PaymentItem(price_at_payment={self.price_at_payment})>"

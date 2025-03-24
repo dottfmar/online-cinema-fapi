@@ -28,3 +28,4 @@ from src.database.models.comment import CommentModel
 from src.database.models.like import LikeModel
 from src.database.models.favourites import FavoritesModel
 from src.database.models.rating import RatingModel
+from src.validators import accounts as accounts_validators

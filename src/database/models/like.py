@@ -1,10 +1,9 @@
+from __future__ import annotations
+
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from database.models.comment import CommentModel
-from src.database.models.accounts import UserModel  # noqa: F401
 from src.database.models.base import Base
-from src.database.models.movie import MovieModel  # noqa: F401
 
 
 class LikeModel(Base):
@@ -13,13 +12,17 @@ class LikeModel(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
-    user: Mapped["UserModel"] = relationship("UserModel", back_populates="likes")
+    user: Mapped["UserModel"] = relationship(  # noqa: F821
+        "UserModel", back_populates="likes"
+    )  # noqa: F821
 
     movie_id: Mapped[int] = mapped_column(ForeignKey("movies.id"), nullable=True)
-    movie: Mapped["MovieModel"] = relationship("MovieModel", back_populates="likes")
+    movie: Mapped["MovieModel"] = relationship(  # noqa: F821
+        "MovieModel", back_populates="likes"
+    )  # noqa: F821
 
     comment_id: Mapped[int] = mapped_column(ForeignKey("comments.id"), nullable=True)
-    comment: Mapped["CommentModel"] = relationship(
+    comment: Mapped["CommentModel"] = relationship(  # noqa: F821
         "CommentModel", back_populates="likes"
     )
 

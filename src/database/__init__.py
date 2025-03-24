@@ -24,3 +24,7 @@ from src.database.models.order import OrderModel
 from src.database.models.order_item import OrderItemModel
 from src.database.models.payments import PaymentItemModel, PaymentModel
 from src.database.models.star import StarModel
+from src.database.models.comment import CommentModel
+from src.database.models.like import LikeModel
+from src.database.models.favourites import FavoritesModel
+from src.database.models.rating import RatingModel

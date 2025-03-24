@@ -46,6 +46,8 @@ class UserGroupModel(Base):
 
     users: Mapped[List["UserModel"]] = relationship("UserModel", back_populates="group")
 
+    __table_args__ = {"extend_existing": True}
+
     def __repr__(self):
         return f"<UserGroupModel(id={self.id}, name={self.name})>"
 
@@ -116,6 +118,7 @@ class UserModel(Base):
     favorites = relationship(
         "FavoritesModel", back_populates="user", cascade="all, delete-orphan"
     )
+    __table_args__ = {"extend_existing": True}
 
     def __repr__(self):
         return (
@@ -178,7 +181,7 @@ class UserProfileModel(Base):
     )
     user: Mapped[UserModel] = relationship("UserModel", back_populates="profile")
 
-    __table_args__ = (UniqueConstraint("user_id"),)
+    __table_args__ = (UniqueConstraint("user_id"), {"extend_existing": True})
 
     def __repr__(self):
         return (
@@ -212,7 +215,7 @@ class ActivationTokenModel(TokenBaseModel):
         "UserModel", back_populates="activation_token"
     )
 
-    __table_args__ = (UniqueConstraint("user_id"),)
+    __table_args__ = (UniqueConstraint("user_id"), {"extend_existing": True})
 
     def __repr__(self):
         return f"<ActivationTokenModel(id={self.id}, token={self.token}, expires_at={self.expires_at})>"
@@ -225,7 +228,7 @@ class PasswordResetTokenModel(TokenBaseModel):
         "UserModel", back_populates="password_reset_token"
     )
 
-    __table_args__ = (UniqueConstraint("user_id"),)
+    __table_args__ = (UniqueConstraint("user_id"), {"extend_existing": True})
 
     def __repr__(self):
         return f"<PasswordResetTokenModel(id={self.id}, token={self.token}, expires_at={self.expires_at})>"
@@ -250,6 +253,8 @@ class RefreshTokenModel(TokenBaseModel):
         """
         expires_at = datetime.now(timezone.utc) + timedelta(days=days_valid)
         return cls(user_id=user_id, expires_at=expires_at, token=token)
+
+    __table_args__ = {"extend_existing": True}
 
     def __repr__(self):
         return f"<RefreshTokenModel(id={self.id}, token={self.token}, expires_at={self.expires_at})>"

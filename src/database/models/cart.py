@@ -3,7 +3,7 @@ from __future__ import annotations
 from sqlalchemy import Column, ForeignKey, Integer, UniqueConstraint
 from sqlalchemy.orm import Mapped, relationship
 
-from src.database.models.base import Base
+from database.models.base import Base
 
 # from src.database import UserModel, CartItemModel
 

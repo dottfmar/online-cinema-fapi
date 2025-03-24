@@ -4,7 +4,8 @@ from __future__ import annotations
 import datetime
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, relationship
-from src.database.models.base import Base
+from database.models.base import Base
+
 
 # from src.database import CartModel, MovieModel
 

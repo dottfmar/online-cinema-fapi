@@ -3,7 +3,7 @@ from __future__ import annotations
 from sqlalchemy import ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.database.models.base import Base
+from database.models.base import Base
 
 
 class CommentModel(Base):
@@ -32,6 +32,10 @@ class CommentModel(Base):
 
     replies: Mapped[list["CommentModel"]] = relationship(
         "CommentModel", back_populates="parent_comment"
+    )
+
+    likes: Mapped[list["LikeModel"]] = relationship(  # noqa: F821
+        "LikeModel", back_populates="comment"
     )
 
     def __repr__(self):

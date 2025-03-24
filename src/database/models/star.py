@@ -3,8 +3,8 @@ from __future__ import annotations
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.database import MovieModel, StarsMoviesModel  # noqa: F401
-from src.database.models.base import Base
+from database import MovieModel, StarsMoviesModel  # noqa: F401
+from database.models.base import Base
 
 
 class StarModel(Base):
@@ -14,5 +14,5 @@ class StarModel(Base):
     name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
 
     movies: Mapped[list["MovieModel"]] = relationship(
-        "MovieModel", secondary="StarsMoviesModel", back_populates="stars"
+        "MovieModel", secondary="movie_stars", back_populates="stars"
     )

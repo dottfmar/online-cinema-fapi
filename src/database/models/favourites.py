@@ -1,9 +1,9 @@
+from __future__ import annotations
+
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.database.models.accounts import UserModel  # noqa: F401
 from src.database.models.base import Base
-from src.database.models.movie import MovieModel  # noqa: F401
 
 
 class FavoritesModel(Base):
@@ -12,10 +12,14 @@ class FavoritesModel(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
-    user: Mapped["UserModel"] = relationship("UserModel", back_populates="favorites")
+    user: Mapped["UserModel"] = relationship(  # noqa: F821
+        "UserModel", back_populates="favorites"
+    )  # noqa: F821
 
     movie_id: Mapped[int] = mapped_column(ForeignKey("movies.id"), nullable=False)
-    movie: Mapped["MovieModel"] = relationship("MovieModel", back_populates="favorites")
+    movie: Mapped["MovieModel"] = relationship(  # noqa: F821
+        "MovieModel", back_populates="favorites"
+    )  # noqa: F821
 
     def __repr__(self):
         return f"<FavoritesModel(user_id={self.user_id}, movie_id={self.movie_id})>"

@@ -104,6 +104,18 @@ class UserModel(Base):
     payments: Mapped[Optional["PaymentModel"]] = relationship(  # noqa: F821
         "PaymentModel", back_populates="user", cascade="all, delete-orphan"
     )
+    likes = relationship(
+        "LikeModel", back_populates="user", cascade="all, delete-orphan"
+    )
+    ratings = relationship(
+        "RatingModel", back_populates="user", cascade="all, delete-orphan"
+    )
+    comments = relationship(
+        "CommentModel", back_populates="user", cascade="all, delete-orphan"
+    )
+    favorites = relationship(
+        "FavoritesModel", back_populates="user", cascade="all, delete-orphan"
+    )
 
     def __repr__(self):
         return (

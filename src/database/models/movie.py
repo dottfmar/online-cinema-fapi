@@ -59,6 +59,18 @@ class MovieModel(Base):
     order_items: Mapped[list["OrderItemModel"]] = relationship(  # noqa: F821
         "OrderItemModel", back_populates="movie"
     )
+    likes = relationship(
+        "LikeModel", back_populates="movie", cascade="all, delete-orphan"
+    )
+    ratings = relationship(
+        "RatingModel", back_populates="movie", cascade="all, delete-orphan"
+    )
+    comments = relationship(
+        "CommentModel", back_populates="movie", cascade="all, delete-orphan"
+    )
+    favorites = relationship(
+        "FavoritesModel", back_populates="user", cascade="all, delete-orphan"
+    )
 
     __table_args__ = (
         UniqueConstraint("name", "year", "time", name="unique_movie_constraint"),

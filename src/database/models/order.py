@@ -7,7 +7,7 @@ from sqlalchemy import DECIMAL, DateTime
 from sqlalchemy import Enum as SQLAlchemyEnum
 from sqlalchemy import ForeignKey, Integer, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from src.database.models.base import Base
+from database.models.base import Base
 
 # from src.database import PaymentModel, UserModel, OrderItemModel
 

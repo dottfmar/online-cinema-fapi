@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from sqlalchemy import ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -16,25 +14,14 @@ class CommentModel(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     user: Mapped["UserModel"] = relationship(  # noqa: F821
         "UserModel", back_populates="comments"
-    )  # noqa: F821
+    )  # noqa F821
 
     movie_id: Mapped[int] = mapped_column(ForeignKey("movies.id"), nullable=False)
     movie: Mapped["MovieModel"] = relationship(  # noqa: F821
         "MovieModel", back_populates="comments"
-    )  # noqa: F821
+    )  # noqa F821
 
-    parent_comment_id: Mapped[int] = mapped_column(
-        ForeignKey("comments.id"), nullable=True
-    )
-    parent_comment: Mapped["CommentModel"] = relationship(
-        "CommentModel", back_populates="replies", remote_side=[id]
-    )
-
-    replies: Mapped[list["CommentModel"]] = relationship(
-        "CommentModel", back_populates="parent_comment"
-    )
-
-    comment_likes: Mapped[list["LikeCommentModel"]] = relationship(  # noqa: F821
+    comment_likes: Mapped[list["LikeCommentModel"]] = relationship(  # noqa F821
         "LikeCommentModel", back_populates="comment"
     )
 

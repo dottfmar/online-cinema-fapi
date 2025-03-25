@@ -65,6 +65,7 @@ bcrypt = "^4.3.0"
 celery = "^5.4.0"
 redis = "^5.2.1"
 flower = "^2.0.1"
+pillow = "^11.1.0"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

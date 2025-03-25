@@ -66,6 +66,7 @@ redis = "^5.2.1"
 flower = "^2.0.1"
 pillow = "^11.1.0"
 python-multipart = "^0.0.20"
+python-jose = "^3.4.0"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

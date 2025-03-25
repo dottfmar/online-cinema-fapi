@@ -9,20 +9,9 @@ def get_token(request: Request) -> str:
     :return: Extracted token string.
     :raises HTTPException: If Authorization header is missing or invalid.
     """
-    authorization: str = request.headers.get("Authorization")
-
-    if not authorization:
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authorization header is missing",
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or missing token"
         )
-
-    scheme, _, token = authorization.partition(" ")
-
-    if scheme.lower() != "bearer" or not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid Authorization header format. Expected 'Bearer <token>'",
-        )
-
-    return token
+    return auth_header.split("Bearer ")[1]

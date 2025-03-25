@@ -1,9 +1,9 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from exceptions import InvalidTokenError, TokenExpiredError
 from jose import ExpiredSignatureError, JWTError, jwt
 
+from exceptions import InvalidTokenError, TokenExpiredError
 from security.interfaces import JWTAuthManagerInterface
 
 
@@ -68,8 +68,10 @@ class JWTAuthManager(JWTAuthManagerInterface):
             )
         except ExpiredSignatureError:
             raise TokenExpiredError
-        except JWTError:
+        except InvalidTokenError:
             raise InvalidTokenError
+        # except JWTError:
+        #     raise InvalidTokenError
 
     def decode_refresh_token(self, token: str) -> dict:
         """

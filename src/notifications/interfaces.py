@@ -48,3 +48,15 @@ class EmailSenderInterface(ABC):
             login_link (str): The login link to include in the email.
         """
         pass
+
+    @abstractmethod
+    async def send_successfully_payment_email(
+        self, email: str, payment_id: int
+    ) -> None:
+        """
+        Asynchronously send an email confirming that a payment has been successfully processed.
+        Args:
+            email (str): The recipient's email address.
+            payment_id (int): The ID of the payment.
+        """
+        pass

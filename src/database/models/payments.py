@@ -8,8 +8,6 @@ from sqlalchemy import DECIMAL, DateTime, Enum, ForeignKey, Integer, String, fun
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from database.models.base import Base
 
-# from src.database import UserModel, OrderModel, OrderItemModel
-
 
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 

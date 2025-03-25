@@ -32,7 +32,10 @@ class S3StorageClient(S3StorageInterface):
         self._secret_key = secret_key
         self._bucket_name = bucket_name
 
-        self._session = aiobotocore.get_session()
+        self._session = aiobotocore.get_session(
+            aws_access_key_id=self._access_key,
+            aws_secret_access_key=self._secret_key,
+        )
 
     async def upload_file(
         self, file_name: str, file_data: Union[bytes, bytearray]

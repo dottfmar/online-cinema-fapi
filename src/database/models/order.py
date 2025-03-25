@@ -9,8 +9,6 @@ from sqlalchemy import ForeignKey, Integer, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from database.models.base import Base
 
-# from src.database import PaymentModel, UserModel, OrderItemModel
-
 
 class OrderStatusEnum(str, Enum):
     PENDING = "Pending"

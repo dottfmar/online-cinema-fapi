@@ -19,9 +19,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from config.dependencies import get_successfully_payment_email_notificator
-from database import PaymentItemModel, PaymentModel
-from dependencies.database_session import get_db
-from database.models import order
+from database import OrderModel, PaymentModel
+from dependencies import get_db
 from notifications import EmailSenderInterface
 from schemas.payments import PaymentCreateSchema, PaymentSchema, PaymentStatus
 

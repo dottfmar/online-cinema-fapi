@@ -5,8 +5,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database.models.base import Base
 
-# from src.database import PaymentItemModel, MovieModel, OrderModel
-
 
 class OrderItemModel(Base):
     __tablename__ = "order_items"

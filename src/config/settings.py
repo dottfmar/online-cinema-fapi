@@ -49,6 +49,7 @@ class Settings(BaseAppSettings):
     POSTGRES_HOST: str = os.getenv("POSTGRES_HOST", "test_host")
     POSTGRES_DB_PORT: int = int(os.getenv("POSTGRES_DB_PORT", 5432))
     POSTGRES_DB: str = os.getenv("POSTGRES_DB", "test_db")
+    SUCCESSFULLY_PAYMENT_EMAIL_TEMPLATE_NAME: str = "successfully_payment.html"
 
     DATABASE_URL: PostgresDsn = os.getenv(
         "DATABASE_URL",

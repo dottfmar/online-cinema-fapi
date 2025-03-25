@@ -1,27 +1,26 @@
+# isort: skip_file
+
 import os
 
 from dotenv import load_dotenv
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
 
 load_dotenv()
 
-DATABASE_URL = os.getenv(
-    "ASYNC_DATABASE_URL",
-    "postgresql+asyncpg://cinema_owner:npg_1ONjELg"
-    "F6sry@ep-calm-cell-a2y1mtn0-pooler.eu-central-1.aws.neon.tech/cinema",
-)
-
+DATABASE_URL = os.getenv("ASYNC_DATABASE_URL")
 if not DATABASE_URL:
-    raise ValueError("DATABASE_URL is not set")
+    raise ValueError("DATABASE_URL is not set in the environment variables")
 
-engine = create_async_engine(DATABASE_URL, future=True, echo=True)
+# Creating an asynchronous engine
+engine = create_async_engine(DATABASE_URL, echo=True)
 
-AsyncSessionLocal = sessionmaker(
-    bind=engine, class_=AsyncSession, expire_on_commit=False
+# Creating a session factory
+async_session_maker = async_sessionmaker(
+    engine, expire_on_commit=False, class_=AsyncSession
 )
 
 
 async def get_db():
-    async with AsyncSessionLocal() as session:
+    async with async_session_maker() as session:
         yield session

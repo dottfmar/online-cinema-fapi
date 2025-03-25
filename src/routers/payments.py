@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import json
 import os
-from typing import List
 
 import stripe
 from dotenv import load_dotenv
@@ -19,9 +18,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from config.dependencies import get_successfully_payment_email_notificator
-from database import PaymentItemModel, PaymentModel
-from dependencies.database_session import get_db
+from database import PaymentModel, PaymentItemModel
 from database.models import order
+from dependencies import get_db
 from notifications import EmailSenderInterface
 from schemas.payments import PaymentCreateSchema, PaymentSchema, PaymentStatus
 
@@ -96,7 +95,7 @@ async def create_payment(
     ]
     db.add_all(payment_items)
     await db.commit()
-    url = f"{BASE_URL}/payments/{payment.id}/"
+    url = BASE_URL + f"/payments/{payment.id}/"
 
     if hasattr(order, "user_email"):
         background_tasks.add_task(
@@ -104,12 +103,6 @@ async def create_payment(
         )
 
     return payment
-
-
-@router.get("/payments/", response_model=List[PaymentSchema])
-async def get_payments(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(PaymentModel))
-    return result.scalars().all()
 
 
 @router.get("/payments/{payment_id}", response_model=PaymentSchema)

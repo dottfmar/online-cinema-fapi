@@ -15,19 +15,15 @@ RUN apt update && apt install -y \
 RUN python -m pip install --upgrade pip && \
     pip install poetry
 
-COPY ./poetry.lock /usr/src/poetry/poetry.lock
-COPY ./pyproject.toml /usr/src/poetry/pyproject.toml
-
-RUN poetry config virtualenvs.create false
-
-WORKDIR /usr/src/poetry
-
-RUN poetry install --no-root --only main
+COPY ./poetry.lock /usr/src/fastapi/poetry.lock
+COPY ./pyproject.toml /usr/src/fastapi/pyproject.toml
 
 WORKDIR /usr/src/fastapi
 
-COPY ./src .
+RUN poetry config virtualenvs.create false
+RUN poetry install --no-root --only main
 
+COPY ./src /usr/src/fastapi
 COPY ./commands /commands
 
 RUN find /commands -type f -name "*.sh" -exec dos2unix {} + && chmod +x /commands/*.sh || true

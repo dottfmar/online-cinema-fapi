@@ -34,8 +34,8 @@ class CommentModel(Base):
         "CommentModel", back_populates="parent_comment"
     )
 
-    likes: Mapped[list["LikeModel"]] = relationship(  # noqa: F821
-        "LikeModel", back_populates="comment"
+    comment_likes: Mapped[list["LikeCommentModel"]] = relationship(  # noqa: F821
+        "LikeCommentModel", back_populates="comment"
     )
 
     def __repr__(self):

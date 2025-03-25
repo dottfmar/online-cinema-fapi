@@ -11,6 +11,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    Boolean,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -33,7 +34,9 @@ class MovieModel(Base):
     meta_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     gross: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     description: Mapped[str] = mapped_column(Text, nullable=False)
-    price: Mapped[float] = mapped_column(DECIMAL(10, 2), nullable=False)
+    price: Mapped[DECIMAL] = mapped_column(DECIMAL(10, 2), nullable=False)
+    amount: Mapped[int] = mapped_column(Integer, nullable=True)
+    is_purchased: Mapped[bool] = mapped_column(Boolean, nullable=True)
 
     certification_id: Mapped[int] = mapped_column(
         ForeignKey("certifications.id"), nullable=False
@@ -59,8 +62,8 @@ class MovieModel(Base):
     order_items: Mapped[list["OrderItemModel"]] = relationship(  # noqa: F821
         "OrderItemModel", back_populates="movie"
     )
-    likes = relationship(
-        "LikeModel", back_populates="movie", cascade="all, delete-orphan"
+    movie_likes = relationship(
+        "LikeMovieModel", back_populates="movie", cascade="all, delete-orphan"
     )
     ratings = relationship(
         "RatingModel", back_populates="movie", cascade="all, delete-orphan"

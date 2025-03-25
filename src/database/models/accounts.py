@@ -106,8 +106,11 @@ class UserModel(Base):
     payments: Mapped[Optional["PaymentModel"]] = relationship(  # noqa: F821
         "PaymentModel", back_populates="user", cascade="all, delete-orphan"
     )
-    likes = relationship(
-        "LikeModel", back_populates="user", cascade="all, delete-orphan"
+    movie_likes = relationship(
+        "LikeMovieModel", back_populates="user", cascade="all, delete-orphan"
+    )
+    comment_likes = relationship(
+        "LikeCommentModel", back_populates="user", cascade="all, delete-orphan"
     )
     ratings = relationship(
         "RatingModel", back_populates="user", cascade="all, delete-orphan"

@@ -19,7 +19,7 @@ class S3StorageClient(S3StorageInterface):
         self, endpoint_url: str, access_key: str, secret_key: str, bucket_name: str
     ):
         """
-        Initialize the asynchronous S3 Storage Client using an aioboto3 Session.
+        Initialize the asynchronous S3 Storage Client using an aiobotocore Session.
 
         Args:
             endpoint_url (str): S3-compatible storage endpoint.

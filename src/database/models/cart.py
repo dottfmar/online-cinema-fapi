@@ -5,8 +5,6 @@ from sqlalchemy.orm import Mapped, relationship
 
 from database.models.base import Base
 
-# from src.database import UserModel, CartItemModel
-
 
 class CartModel(Base):
     __tablename__ = "carts"
@@ -25,3 +23,6 @@ class CartModel(Base):
     )
 
     __table_args__ = (UniqueConstraint("user_id", name="uq_user_cart"),)
+
+    def __repr__(self):
+        return f"<CartModel(id={self.id}, user_id={self.user_id})>"

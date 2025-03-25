@@ -3,7 +3,13 @@ from sqlalchemy.orm import Session
 from src.database import CartItemModel, CartModel, MovieModel, UserModel
 
 
-def add_movie_to_cart(user: UserModel, movie: MovieModel, db: Session):
+def add_movie_to_cart_service(user: UserModel, movie: MovieModel, db: Session):
+    if movie.is_purchased:
+        raise ValueError("This movie has already been purchased.")
+
+    if movie.amount == 0:
+        raise ValueError("There is no movie to purchase.")
+
     cart = user.cart
     if not cart:
         cart = CartModel(user_id=user.id)
@@ -19,18 +25,13 @@ def add_movie_to_cart(user: UserModel, movie: MovieModel, db: Session):
     if existing_item:
         raise ValueError("This movie is already in your cart.")
 
-    if movie.is_purchased:
-        raise ValueError("This movie has already been purchased.")
-
-    if movie.amount == 0:
-        raise ValueError("There is no movie to purchase.")
-
     cart_item = CartItemModel(cart_id=cart.id, movie_id=movie.id)
     db.add(cart_item)
     db.commit()
+    db.refresh(cart_item)
 
 
-def remove_movie_from_cart(user: UserModel, movie: MovieModel, db: Session):
+def remove_movie_from_cart_service(user: UserModel, movie: MovieModel, db: Session):
     cart = user.cart
     if not cart:
         raise ValueError("Cart not found.")
@@ -47,36 +48,35 @@ def remove_movie_from_cart(user: UserModel, movie: MovieModel, db: Session):
     db.commit()
 
 
-def view_cart(user: UserModel, db: Session):
+def view_cart_service(user: UserModel, db: Session):
     cart = user.cart
     if not cart:
         return []
 
-    cart_items = db.query(CartItemModel).filter(CartItemModel.cart_id == cart.id).all()
-    movies_in_cart = []
-    for item in cart_items:
-        movie = item.movie
-        movies_in_cart.append(
-            {
-                "title": movie.title,
-                "price": movie.price,
-                "genre": movie.genre,
-                "release_year": movie.release_year,
-            }
-        )
-    return movies_in_cart
+    db.refresh(cart)
+    return [
+        {
+            "title": item.movie.title,
+            "price": item.movie.price,
+            "genre": item.movie.genre,
+            "release_year": item.movie.release_year,
+        }
+        for item in cart.items
+    ]
 
 
-def clear_cart(user: UserModel, db: Session):
+def clear_cart_service(user: UserModel, db: Session):
     cart = user.cart
     if not cart:
         raise ValueError("Cart not found.")
 
-    db.query(CartItemModel).filter(CartItemModel.cart_id == cart.id).delete()
+    for item in cart.items:
+        db.delete(item)
+
     db.commit()
 
 
-def checkout(user: UserModel, db: Session):
+def checkout_cart_service(user: UserModel, db: Session):
     cart = user.cart
     if not cart:
         raise ValueError("Cart not found.")
@@ -92,6 +92,7 @@ def checkout(user: UserModel, db: Session):
     for item in cart.items:
         movie = item.movie
         movie.is_purchased = True
+        db.add(movie)
 
     db.query(CartItemModel).filter(CartItemModel.cart_id == cart.id).delete()
     db.commit()

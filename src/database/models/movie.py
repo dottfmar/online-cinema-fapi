@@ -16,7 +16,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.database.models.base import Base
+from database.models.base import Base
 
 
 class MovieModel(Base):
@@ -46,17 +46,17 @@ class MovieModel(Base):
     )
 
     genres: Mapped[list["GenreModel"]] = relationship(  # noqa: F821
-        "GenreModel", secondary="MoviesGenresModel", back_populates="movies"
+        "GenreModel", secondary="movie_genres", back_populates="movies"
     )
     stars: Mapped[list["StarModel"]] = relationship(  # noqa: F821
-        "StarModel", secondary="StarsMoviesModel", back_populates="movies"
+        "StarModel", secondary="movie_stars", back_populates="movies"
     )
     directors: Mapped[list["DirectorModel"]] = relationship(  # noqa: F821
-        "DirectorModel", secondary="MoviesDirectorsModel", back_populates="movies"
+        "DirectorModel", secondary="movie_directors", back_populates="movies"
     )
 
-    cart_item: Mapped["CartItemModel"] = relationship(  # noqa: F821
-        "CartItemModel", back_populates="movies"
+    items: Mapped["CartItemModel"] = relationship(  # noqa: F821
+        "CartItemModel", back_populates="movie"
     )
 
     order_items: Mapped[list["OrderItemModel"]] = relationship(  # noqa: F821
@@ -72,7 +72,7 @@ class MovieModel(Base):
         "CommentModel", back_populates="movie", cascade="all, delete-orphan"
     )
     favorites = relationship(
-        "FavoritesModel", back_populates="user", cascade="all, delete-orphan"
+        "FavoritesModel", back_populates="movie", cascade="all, delete-orphan"
     )
 
     __table_args__ = (

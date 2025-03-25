@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from sqlalchemy import Column, ForeignKey, Table
 
-from src.database.models.base import Base
+from database.models.base import Base
 
 MoviesGenresModel = Table(
     "movie_genres",

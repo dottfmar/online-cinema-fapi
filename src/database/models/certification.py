@@ -3,7 +3,7 @@ from __future__ import annotations
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.database.models.base import Base
+from database.models.base import Base
 
 
 class CertificationModel(Base):

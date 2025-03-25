@@ -3,7 +3,7 @@ from __future__ import annotations
 from sqlalchemy import DECIMAL, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.database.models.base import Base
+from database.models.base import Base
 
 # from src.database import PaymentItemModel, MovieModel, OrderModel
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.database.models.base import Base
+from database.models.base import Base
 
 
 class DirectorModel(Base):
@@ -13,5 +13,5 @@ class DirectorModel(Base):
     name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
 
     movies: Mapped[list["MovieModel"]] = relationship(  # noqa: F821
-        "MovieModel", secondary="MoviesDirectorsModel", back_populates="directors"
+        "MovieModel", secondary="movie_directors", back_populates="directors"
     )

@@ -7,12 +7,7 @@ from sqlalchemy.orm import Session
 from database import CartItemModel, MovieModel, UserModel
 from dependencies import get_current_user, get_db
 from schemas import AddMovieToCartSchema, CartItemSchema, CartSchema
-from services import (
-    add_movie_to_cart_service,
-    checkout_cart_service,
-    clear_cart_service,
-    remove_movie_from_cart_service,
-)
+from services import CartService
 
 router = APIRouter()
 
@@ -36,13 +31,15 @@ async def add_movie_to_cart(
     - 404: If the movie is not found.
     - 400: If there was an error adding the movie to the cart.
     """
-    movie = db.query(MovieModel).filter(MovieModel.id == add_movie.movie_id).first()
+    movie: [MovieModel] = (
+        db.query(MovieModel).filter(MovieModel.id == add_movie.movie_id).first()
+    )
     if not movie:
         raise HTTPException(status_code=404, detail="Movie not found")
 
     # Using service function to add movie to the cart
     try:
-        cart = add_movie_to_cart_service(current_user, movie, db)
+        cart = CartService.add_movie_to_cart_service(current_user, movie, db)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -88,7 +85,7 @@ async def remove_movie_from_cart(
     """
     # Using service function to remove movie from the cart
     try:
-        cart = remove_movie_from_cart_service(current_user, movie_id, db)
+        cart = CartService.remove_movie_from_cart_service(current_user, movie_id, db)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -110,7 +107,7 @@ async def clear_cart(
     """
     # Using service function to clear the cart
     try:
-        cart = clear_cart_service(current_user, db)
+        cart = CartService.clear_cart_service(current_user, db)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -134,7 +131,7 @@ async def checkout_cart(
     """
     # Using service function to check out the cart
     try:
-        cart = checkout_cart_service(current_user, db, background_tasks)
+        cart = CartService.checkout_cart_service(current_user, db)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

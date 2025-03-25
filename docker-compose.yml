@@ -1,26 +1,4 @@
 services:
-  mailhog:
-    image: mailhog/mailhog
-    container_name: mailhog_theater
-    ports:
-      - "8025:8025"
-      - "1025:1025"
-    networks:
-      - theater_network
-
-  minio:
-    image: minio/minio
-    container_name: minio_theater
-    entrypoint: sh
-    command: [ "-c", "minio server --console-address ':9001' /data" ]
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    volumes:
-      - minio_data:/data
-    networks:
-      - theater_network
-
   web:
     build: .
     container_name: web_theater
@@ -36,38 +14,61 @@ services:
     depends_on:
       - mailhog
       - minio
+    env_file:
+      - .env
     networks:
       - theater_network
 
-  redis:
-    image: redis:alpine
-    container_name: redis_theater
+  mailhog:
+    restart: always
+    build:
+      context: .
+      dockerfile: ./docker/mailhog/Dockerfile
+    container_name: mailhog_theater
+    command: [ "/bin/bash", "-c", "/commands/setup_mailhog_auth.sh && ~/go/bin/MailHog" ]
     ports:
-      - "6379:6379"
+      - "8025:8025"
+      - "1025:1025"
+    env_file:
+      - .env
+    environment:
+      MH_AUTH_FILE: /mailhog.auth
     networks:
       - theater_network
 
-  celery:
-    build: .
-    container_name: celery_theater
-    command: [ "poetry", "run", "celery", "-A", "app.celery", "worker", "--loglevel=info" ]
-    depends_on:
-      - redis
+  minio:
+    image: minio/minio:latest
+    container_name: minio-theater
+    command: server --console-address ":9001" /data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    env_file:
+      - .env
     volumes:
-      - ./src:/usr/src/fastapi
+      - minio_data:/data
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - theater_network
 
-  celery-beat:
-    build: .
-    container_name: celery_beat_theater
-    command: [ "poetry", "run", "celery", "-A", "app.celery", "beat", "--loglevel=info" ]
+  minio_mc:
+    build:
+      context: .
+      dockerfile: ./docker/minio_mc/Dockerfile
+    container_name: minio_mc_theater
+    command: [ "/bin/sh", "-c", "./commands/setup_minio.sh" ]
     depends_on:
-      - redis
-    volumes:
-      - ./src:/usr/src/fastapi
+      minio:
+        condition: service_healthy
+    env_file:
+      - .env
     networks:
       - theater_network
+
 
 networks:
   theater_network:

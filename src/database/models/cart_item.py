@@ -7,8 +7,6 @@ from sqlalchemy.orm import Mapped, relationship
 from database.models.base import Base
 
 
-# from src.database import CartModel, MovieModel
-
 
 class CartItemModel(Base):
     __tablename__ = "cart_items"
@@ -26,3 +24,6 @@ class CartItemModel(Base):
     )  # noqa: F821
 
     __table_args__ = (UniqueConstraint("cart_id", "movie_id", name="uq_cart_movie"),)
+
+    def __repr__(self):
+        return f"<CartItemModel(id={self.id}, cart_id={self.cart_id}, movie_id={self.movie_id})>"

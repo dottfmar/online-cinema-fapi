@@ -19,7 +19,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from config.dependencies import get_successfully_payment_email_notificator
-from database import PaymentItemModel, PaymentModel, get_db
+from database import PaymentItemModel, PaymentModel
+from dependencies.database_session import get_db
 from database.models import order
 from notifications import EmailSenderInterface
 from schemas.payments import PaymentCreateSchema, PaymentSchema, PaymentStatus
@@ -27,11 +28,7 @@ from schemas.payments import PaymentCreateSchema, PaymentSchema, PaymentStatus
 load_dotenv()
 router = APIRouter()
 
-stripe.api_key = (
-    os.getenv("STRIPE_SECRET_KEY")
-    or "sk_test_51QxvYzL2KvP4adqMXEceJuUrxH8d64xfGFW3YobeoahAoRN1KBTSZ2vABuo1ht"  # noqa: W503, F401
-    "dBmu0mZwd4XyiRBcfnJSNMHzsN00les9Kgja"
-)
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
 BASE_URL = os.getenv("BASE_URL") or "http://127.0.0.1:8000"
 

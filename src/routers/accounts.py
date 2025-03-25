@@ -483,7 +483,7 @@ async def login_user(
             detail="User account is not activated.",
         )
 
-    jwt_refresh_token = jwt_manager.create_refresh_token({"user_id": user.id})
+    jwt_refresh_token = jwt_manager.create_refresh_token({"email": user.email})
 
     try:
         refresh_token = RefreshTokenModel.create(

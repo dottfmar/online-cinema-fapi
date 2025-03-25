@@ -26,8 +26,7 @@ from database.models.order_item import OrderItemModel
 from database.models.payments import PaymentItemModel, PaymentModel
 from database.models.star import StarModel
 from database.models.comment import CommentModel
-from database.models.like import LikeModel
+from database.models.like_movie import LikeMovieModel
+from database.models.like_comment import LikeCommentModel
 from database.models.favourites import FavoritesModel
 from database.models.rating import RatingModel
-from validators import accounts as accounts_validators
-from database.database_session import get_db

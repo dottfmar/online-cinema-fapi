@@ -1,7 +1,7 @@
 # isort: skip_file
 from typing import Union
 
-import aioboto3
+import aiobotocore
 from botocore.exceptions import (
     BotoCoreError,
     ConnectionError,
@@ -19,7 +19,7 @@ class S3StorageClient(S3StorageInterface):
         self, endpoint_url: str, access_key: str, secret_key: str, bucket_name: str
     ):
         """
-        Initialize the asynchronous S3 Storage Client using an aioboto3 Session.
+        Initialize the asynchronous S3 Storage Client using an aiobotocore Session.
 
         Args:
             endpoint_url (str): S3-compatible storage endpoint.
@@ -32,10 +32,7 @@ class S3StorageClient(S3StorageInterface):
         self._secret_key = secret_key
         self._bucket_name = bucket_name
 
-        self._session = aioboto3.Session(
-            aws_access_key_id=self._access_key,
-            aws_secret_access_key=self._secret_key,
-        )
+        self._session = aiobotocore.get_session()
 
     async def upload_file(
         self, file_name: str, file_data: Union[bytes, bytearray]

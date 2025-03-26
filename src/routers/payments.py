@@ -25,7 +25,7 @@ from schemas.payments import PaymentCreateSchema, PaymentSchema, PaymentStatus
 
 
 load_dotenv()
-router = APIRouter()
+router = APIRouter(tags=["Payment"])
 
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 

@@ -19,7 +19,7 @@ from schemas import (
 from schemas.payments import PaymentSchema
 from services import OrderService, PaymentService
 
-router = APIRouter()
+router = APIRouter(tags=["Orders"])
 
 
 @router.get("/orders/", response_model=List[OrderSchema])

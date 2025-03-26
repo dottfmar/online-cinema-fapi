@@ -67,33 +67,6 @@ async def get_order(
     return OrderSchema.from_orm(order)
 
 
-@router.post("/orders/{order_id}/repeat/", response_model=OrderSchema)
-async def repeat_order(
-    order_id: int,
-    current_user: UserModel = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """
-    Create a new order by repeating the details of an existing order.
-
-    - **order_id**: The ID of the existing order to repeat.
-    - **current_user**: The user making the request (injected by Depends).
-    - **db**: Database AsyncSession (injected by Depends).
-
-    Returns the newly created order.
-    """
-    # Find an order by ID and user
-    order = await OrderService.get_order_service(db, current_user, order_id)
-
-    if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
-
-    # Create a new order
-    new_order = await OrderService.repeat_order_service(db, order, current_user)
-
-    return OrderSchema.model_validate(new_order)
-
-
 @router.post("/orders/", response_model=OrderSchema)
 async def create_order(
     order_data: OrderCreateSchema,

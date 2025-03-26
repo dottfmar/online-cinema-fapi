@@ -4,7 +4,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from database import CartItemModel, MovieModel, UserModel, CartModel
 from dependencies import get_current_user, get_db, get_db_sync
@@ -35,7 +35,7 @@ async def add_movie_to_cart(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    return await CartSchema.model_validate(cart)
+    return CartSchema.model_validate(cart)
 
 
 @router.get("/cart/", response_model=CartSchema)
@@ -83,7 +83,7 @@ async def remove_movie_from_cart(
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
-    return await CartSchema.from_orm(cart)
+    return CartSchema.model_validate(cart)
 
 
 @router.delete("/cart/clear/", response_model=CartSchema)
@@ -102,16 +102,15 @@ async def clear_cart(
     """
     # Using service function to clear the cart
     try:
-        cart = CartService.clear_cart_service(current_user, db)
+        cart = await CartService.clear_cart_service(current_user, db)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
-    return CartSchema.from_orm(cart)
+    return CartSchema.model_validate(cart)
 
 
 @router.post("/cart/checkout/", response_model=CartSchema)
 async def checkout_cart(
-    background_tasks: BackgroundTasks,
     current_user: UserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -126,11 +125,11 @@ async def checkout_cart(
     """
     # Using service function to check out the cart
     try:
-        cart = CartService.checkout_cart_service(current_user, db)
+        cart = await CartService.checkout_cart_service(current_user, db)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    return CartSchema.from_orm(cart)
+    return CartSchema.model_validate(cart)
 
 
 @router.get("/cart/movie/{movie_id}", response_model=CartItemSchema)
@@ -154,19 +153,21 @@ async def get_movie_in_cart(
     if not current_user.cart:
         raise HTTPException(status_code=404, detail="Cart not found")
 
-    cart_item = (
-        db.query(CartItemModel)
-        .filter(
+    stmt = (
+        select(CartItemModel)
+        .options(selectinload(CartItemModel.movie))
+        .where(
             CartItemModel.cart_id == current_user.cart.id,
             CartItemModel.movie_id == movie_id,
         )
-        .first()
     )
+    result = await db.execute(stmt)
+    cart_item = result.scalars().first()
 
     if not cart_item:
         raise HTTPException(status_code=404, detail="Movie not in cart")
 
-    return CartItemSchema.from_orm(cart_item)
+    return await CartItemSchema.from_orm(cart_item)
 
 
 @router.put("/cart/movie/{movie_id}", response_model=CartItemSchema)
@@ -193,14 +194,12 @@ async def update_movie_quantity_in_cart(
     if not current_user.cart:
         raise HTTPException(status_code=404, detail="Cart not found")
 
-    cart_item = (
-        db.query(CartItemModel)
-        .filter(
-            CartItemModel.cart_id == current_user.cart.id,
-            CartItemModel.movie_id == movie_id,
-        )
-        .first()
+    stmt = select(CartItemModel).filter(
+        CartItemModel.cart_id == current_user.cart.id,
+        CartItemModel.movie_id == movie_id,
     )
+    result = await db.execute(stmt)
+    cart_item = result.scalars().first()
 
     if not cart_item:
         raise HTTPException(status_code=404, detail="Movie not in cart")
@@ -210,10 +209,11 @@ async def update_movie_quantity_in_cart(
         raise HTTPException(status_code=400, detail="Quantity must be greater than 0")
 
     cart_item.quantity = quantity
-    db.commit()
-    db.refresh(cart_item)
+    db.add(cart_item)
+    await db.commit()
+    await db.refresh(cart_item)
 
-    return CartItemSchema.from_orm(cart_item)
+    return CartItemSchema.model_validate(cart_item)
 
 
 @router.get("/cart/items/", response_model=List[CartItemSchema])
@@ -233,9 +233,8 @@ async def get_cart_items(
     if not current_user.cart:
         raise HTTPException(status_code=404, detail="Cart not found")
 
-    cart_items = (
-        db.query(CartItemModel)
-        .filter(CartItemModel.cart_id == current_user.cart.id)
-        .all()
-    )
-    return [CartItemSchema.from_orm(cart_item) for cart_item in cart_items]
+    stmt = select(CartItemModel).filter(CartItemModel.cart_id == current_user.cart.id)
+    result = await db.execute(stmt)
+    cart_items = result.scalars().all()
+
+    return [CartItemSchema.model_validate(cart_item) for cart_item in cart_items]

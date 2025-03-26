@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import List
+
 from sqlalchemy import Column, ForeignKey, Integer, UniqueConstraint
 from sqlalchemy.orm import Mapped, relationship
 
@@ -18,7 +20,7 @@ class CartModel(Base):
         "UserModel", back_populates="cart"
     )
 
-    items: Mapped["CartItemModel"] = relationship(  # noqa: F821
+    items: Mapped[List["CartItemModel"]] = relationship(  # noqa: F821
         "CartItemModel", back_populates="cart", lazy="selectin"
     )  # noqa: F821
 

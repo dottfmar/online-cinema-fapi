@@ -7,7 +7,6 @@ from schemas.order_schemas import (
     OrderItemSchema,
     OrderCreateSchema,
     OrderItemCreateSchema,
-    OrderStatisticsSchema,
 )
 from schemas.accounts import (
     MessageResponseSchema,

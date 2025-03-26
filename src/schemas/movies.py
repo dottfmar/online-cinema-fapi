@@ -12,9 +12,6 @@ class MovieListItemSchema(BaseModel):
     id: int
     name: str
     year: int
-    imdb: float
-    price: float
-    gross: Optional[float]
     certification: str
 
     model_config = {"from_attributes": True}

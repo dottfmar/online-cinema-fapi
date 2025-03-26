@@ -4,9 +4,10 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.orm import joinedload
 
 from database import (
     CommentModel,
@@ -52,62 +53,29 @@ router = APIRouter(prefix="/movies", tags=["Movies"])
 
 
 @router.get("/", response_model=MovieListResponseSchema)
-async def get_movies(
+async def get_movie_list(
     page: int = Query(1, ge=1, description="Page number (1-based index)"),
     per_page: int = Query(10, ge=1, le=20, description="Number of items per page"),
-    name: Optional[str] = Query(None, description="Filter movies by name"),
-    actor: Optional[str] = Query(None, description="Filter movies by actor name"),
-    director: Optional[str] = Query(None, description="Filter movies by director name"),
-    description: Optional[str] = Query(
-        None, description="Filter movies by description"
-    ),
-    min_price: Optional[float] = Query(
-        None, description="Filter movies by minimum price"
-    ),
-    max_price: Optional[float] = Query(
-        None, description="Filter movies by maximum price"
-    ),
-    min_rating: Optional[float] = Query(
-        None, description="Filter movies by minimum rating"
-    ),
-    max_rating: Optional[float] = Query(
-        None, description="Filter movies by maximum rating"
-    ),
-    sort_by: Optional[str] = Query(
-        None, description="Sort by this field (e.g., 'name', 'price', 'imdb')"
-    ),
-    sort_order: Optional[str] = Query(None, description="Sort order ('asc' or 'desc')"),
-    search: Optional[str] = Query(
-        None, description="Search movies by name, actor, director, or description"
-    ),
     db: AsyncSession = Depends(get_db),
-):
-    query = select(MovieModel)
+) -> MovieListResponseSchema:
 
-    query = filter_movies(
-        query,
-        name,
-        actor,
-        director,
-        description,
-        min_price,
-        max_price,
-        min_rating,
-        max_rating,
-        search,
-    )
+    offset = (page - 1) * per_page
 
-    if sort_by and sort_order:
-        query = sort_movies(query, sort_by, sort_order)
+    count_stmt = select(func.count(MovieModel.id))
+    result_count = await db.execute(count_stmt)
+    total_items = result_count.scalar() or 0
 
-    total_items = await get_total_count(db, query)
-
-    if total_items == 0:
+    if not total_items:
         raise HTTPException(status_code=404, detail="No movies found.")
 
-    query = paginate(query, page, per_page)
+    order_by = MovieModel.default_order_by()
+    stmt = select(MovieModel)
+    if order_by:
+        stmt = stmt.order_by(*order_by)
 
-    result_movies = await db.execute(query)
+    stmt = stmt.offset(offset).limit(per_page)
+
+    result_movies = await db.execute(stmt)
     movies = result_movies.scalars().all()
 
     if not movies:
@@ -117,17 +85,22 @@ async def get_movies(
 
     total_pages = (total_items + per_page - 1) // per_page
 
-    return MovieListResponseSchema(
+    response = MovieListResponseSchema(
         movies=movie_list,
-        prev_page=f"/movies?page={page - 1}&per_page={per_page}" if page > 1 else None,
+        prev_page=(
+            f"/theater/movies/?page={page - 1}&per_page={per_page}"
+            if page > 1
+            else None
+        ),
         next_page=(
-            f"/movies?page={page + 1}&per_page={per_page}"
+            f"/theater/movies/?page={page + 1}&per_page={per_page}"
             if page < total_pages
             else None
         ),
         total_pages=total_pages,
         total_items=total_items,
     )
+    return response
 
 
 @router.get("/{movie_id}/", response_model=MovieResponseSchema)
@@ -247,6 +220,7 @@ async def reply_to_comment(
     db: AsyncSession = Depends(get_db),
     user: UserModel = Depends(get_current_user),
 ):
+
     result = await db.execute(select(MovieModel).filter(MovieModel.id == movie_id))
     movie = result.scalars().first()
     if not movie:
@@ -277,7 +251,13 @@ async def reply_to_comment(
         send_notification, comment.user_id, notification_message, db
     )
 
-    return {"status": "success", "reply": new_reply}
+    return CommentResponseSchema(
+        id=new_reply.id,
+        content=new_reply.content,
+        created_at=new_reply.created_at,
+        user_id=new_reply.user_id,
+        movie_id=new_reply.movie_id,
+    )
 
 
 @router.get("/notifications")

@@ -11,7 +11,7 @@ from dependencies import get_current_user, get_db, get_db_sync
 from schemas import AddMovieToCartSchema, CartItemSchema, CartSchema
 from services import CartService
 
-router = APIRouter()
+router = APIRouter(tags=["Cart"])
 
 
 @router.post("/cart/", response_model=CartSchema)

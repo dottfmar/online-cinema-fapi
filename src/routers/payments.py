@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import json
 import os
-from typing import List
 
 import stripe
 from dotenv import load_dotenv
@@ -19,10 +18,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from config.dependencies import get_successfully_payment_email_notificator
-from database import OrderModel, PaymentModel
+from database import PaymentModel, PaymentItemModel, OrderModel
 from dependencies import get_db
 from notifications import EmailSenderInterface
 from schemas.payments import PaymentCreateSchema, PaymentSchema, PaymentStatus
+
 
 load_dotenv()
 router = APIRouter()
@@ -95,20 +95,20 @@ async def create_payment(
     ]
     db.add_all(payment_items)
     await db.commit()
-    url = f"{BASE_URL}/payments/{payment.id}/"
+    order_query = await db.execute(
+        select(OrderModel).filter(OrderModel.id == payment_data.order_id)
+    )
+    order = order_query.scalar()
 
-    if hasattr(order, "user_email"):
+    if order and order.user:
+        user_email = order.user.email
+        url = BASE_URL + f"/payments/{payment.id}/"
+
         background_tasks.add_task(
-            email_notification.send_successfully_payment_email, order.user_email, url
+            email_notification.send_successfully_payment_email, user_email, url
         )
 
     return payment
-
-
-@router.get("/payments/", response_model=List[PaymentSchema])
-async def get_payments(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(PaymentModel))
-    return result.scalars().all()
 
 
 @router.get("/payments/{payment_id}", response_model=PaymentSchema)
@@ -119,11 +119,19 @@ async def get_payment(payment_id: int, db: AsyncSession = Depends(get_db)):
     payment = result.scalars().first()
     if not payment:
         raise HTTPException(status_code=404, detail="Payment not found")
+
     return payment
 
 
 @router.post("/webhook/")
-async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
+async def stripe_webhook(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    email_notification: EmailSenderInterface = Depends(
+        get_successfully_payment_email_notificator
+    ),
+    db: AsyncSession = Depends(get_db),
+):
     payload = await request.body()
 
     try:
@@ -150,5 +158,29 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
         db.add(payment)
         await db.commit()
         await db.refresh(payment)
+
+        payment_items = [
+            PaymentItemModel(
+                payment_id=payment.id,
+                order_item_id=item.order_item_id,
+                price_at_payment=item.price_at_payment,
+            )
+            for item in payment_data.payment_items
+        ]
+        db.add_all(payment_items)
+        await db.commit()
+
+        order_query = await db.execute(
+            select(OrderModel).filter(OrderModel.id == payment_data.order_id)
+        )
+        order = order_query.scalar()
+
+        if order and order.user:
+            user_email = order.user.email
+            url = BASE_URL + f"/payments/{payment.id}/"
+
+            background_tasks.add_task(
+                email_notification.send_successfully_payment_email, user_email, url
+            )
 
     return {"status": "success"}

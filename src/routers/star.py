@@ -3,10 +3,12 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dependencies import get_db
+from database import UserModel
+from dependencies import get_current_user, get_db
 from schemas.star import StarCreateSchema, StarListSchema, StarUpdateSchema
 from services import star_service
 from services.star_service import create_star, get_all_stars, update_star
+from services.user_service import check_admin_or_moderator
 
 router = APIRouter(prefix="/stars", tags=["Stars"])
 
@@ -65,7 +67,11 @@ async def get_stars(db: AsyncSession = Depends(get_db)):
         }
     },
 )
-async def create_star_route(star: StarCreateSchema, db: AsyncSession = Depends(get_db)):
+async def create_star_route(
+    star: StarCreateSchema,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
     """
     Create a new star in the system.
 
@@ -81,6 +87,7 @@ async def create_star_route(star: StarCreateSchema, db: AsyncSession = Depends(g
 
     :raises HTTPException: Raises a 400 error if the star with the given name already exists.
     """
+    await check_admin_or_moderator(current_user)
     new_star = await create_star(db, star.name)
     return new_star
 
@@ -102,7 +109,10 @@ async def create_star_route(star: StarCreateSchema, db: AsyncSession = Depends(g
     },
 )
 async def update_star_route(
-    star_id: int, star: StarUpdateSchema, db: AsyncSession = Depends(get_db)
+    star_id: int,
+    star: StarUpdateSchema,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ):
     """
     Update the details of an existing star.
@@ -121,9 +131,8 @@ async def update_star_route(
 
     :raises HTTPException: Raises a 404 error if the star with the given ID does not exist.
     """
-    updated_star = await update_star(
-        db, star_id, star.name
-    )  # Викликаємо сервіс для оновлення
+    await check_admin_or_moderator(current_user)
+    updated_star = await update_star(db, star_id, star.name)
     if not updated_star:
         raise HTTPException(status_code=404, detail="Star not found")
     return updated_star
@@ -152,6 +161,7 @@ async def update_star_route(
 async def delete_star(
     star_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ):
     """
     Delete an existing star.
@@ -165,6 +175,7 @@ async def delete_star(
 
     :raises HTTPException: Raises a 404 error if the star is not found or has related movies.
     """
+    await check_admin_or_moderator(current_user)
     success = await star_service.delete_star(db, star_id)
     if not success:
         raise HTTPException(

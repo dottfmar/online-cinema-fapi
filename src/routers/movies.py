@@ -236,15 +236,22 @@ async def like_comment(
     return {"status": "success", "liked": like.status}
 
 
-@router.post("/{movie_id}/comments/{comment_id}/reply")
+@router.post(
+    "/{movie_id}/comments/{comment_id}/reply", response_model=CommentResponseSchema
+)
 async def reply_to_comment(
     movie_id: int,
     comment_id: int,
-    content: str,
+    content: CommentCreateSchema,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     user: UserModel = Depends(get_current_user),
 ):
+    result = await db.execute(select(MovieModel).filter(MovieModel.id == movie_id))
+    movie = result.scalars().first()
+    if not movie:
+        raise HTTPException(status_code=404, detail="Movie not found")
+
     result = await db.execute(
         select(CommentModel).filter(CommentModel.id == comment_id)
     )
@@ -252,24 +259,25 @@ async def reply_to_comment(
     if not comment:
         raise HTTPException(status_code=404, detail="Comment not found")
 
-    reply = CommentModel(
-        content=content,
-        created_at=datetime.utcnow(),
+    reply_content = f"Reply to comment {comment_id}: {content.content}"
+
+    new_reply = CommentModel(
+        content=reply_content,
+        created_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
         user_id=user.id,
         movie_id=movie_id,
     )
-    db.add(reply)
-    await db.commit()
-    await db.refresh(reply)
 
+    db.add(new_reply)
+    await db.commit()
+    await db.refresh(new_reply)
+
+    notification_message = f"Your comment on movie {movie_id} has received a reply!"
     background_tasks.add_task(
-        send_notification,
-        comment.user_id,
-        f"Your comment on movie {movie_id} has received a reply!",
-        db,
+        send_notification, comment.user_id, notification_message, db
     )
 
-    return {"status": "success", "reply": reply}
+    return {"status": "success", "reply": new_reply}
 
 
 @router.get("/notifications")

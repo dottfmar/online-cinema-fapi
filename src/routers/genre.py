@@ -169,7 +169,7 @@ async def create_genre(
     db: AsyncSession = Depends(get_db),
     current_user: UserModel = Depends(get_current_user),
 ):
-    check_admin_or_moderator(current_user)
+    await check_admin_or_moderator(current_user)
 
     new_genre = await genre_service.create_genre(db, genre)
     if not new_genre:
@@ -199,9 +199,9 @@ async def update_genre(
     genre_id: int,
     genre: GenreUpdateSchema,
     db: AsyncSession = Depends(get_db),
-    # current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_user),
 ):
-    # check_admin_or_moderator(current_user)
+    await check_admin_or_moderator(current_user)
 
     updated_genre = await genre_service.update_genre(db, genre_id, genre)
 
@@ -234,9 +234,9 @@ async def update_genre(
 async def delete_genre(
     genre_id: int,
     db: AsyncSession = Depends(get_db),
-    # current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_user),
 ):
-    # check_admin_or_moderator(current_user)
+    await check_admin_or_moderator(current_user)
 
     success = await genre_service.delete_genre(db, genre_id)
     if not success:

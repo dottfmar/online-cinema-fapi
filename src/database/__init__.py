@@ -30,3 +30,4 @@ from database.models.like_movie import LikeMovieModel
 from database.models.like_comment import LikeCommentModel
 from database.models.favourites import FavoritesModel
 from database.models.rating import RatingModel
+from database.models.notification import NotificationModel

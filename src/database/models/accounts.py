@@ -121,6 +121,9 @@ class UserModel(Base):
     favorites = relationship(
         "FavoritesModel", back_populates="user", cascade="all, delete-orphan"
     )
+    notifications: Mapped[list["NotificationModel"]] = relationship(  # noqa: F821
+        "NotificationModel", back_populates="user", cascade="all, delete-orphan"
+    )
     __table_args__ = {"extend_existing": True}
 
     def __repr__(self):

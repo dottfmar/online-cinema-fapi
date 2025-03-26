@@ -17,6 +17,10 @@ class GenreListSchema(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class GenreListResponseSchema(BaseModel):
+    genres: List[GenreListSchema]
+
+
 class GenreUpdateSchema(BaseModel):
     name: Optional[str] = None
 

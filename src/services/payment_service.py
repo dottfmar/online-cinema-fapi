@@ -1,9 +1,12 @@
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import PaymentModel
 
 
 class PaymentService:
     @staticmethod
-    def get_payment_service(db: Session, order_id: int):
-        return db.query(PaymentModel).filter(PaymentModel.order_id == order_id).all()
+    async def get_payment_service(db: AsyncSession, order_id: int):
+        query = select(PaymentModel).filter(PaymentModel.order_id == order_id)
+        result = await db.execute(query)
+        return result.scalars().all()

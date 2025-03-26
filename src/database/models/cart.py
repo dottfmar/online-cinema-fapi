@@ -19,8 +19,8 @@ class CartModel(Base):
     )
 
     items: Mapped["CartItemModel"] = relationship(  # noqa: F821
-        "CartItemModel", back_populates="cart", cascade="all, delete-orphan"
-    )
+        "CartItemModel", back_populates="cart", lazy="selectin"
+    )  # noqa: F821
 
     __table_args__ = (UniqueConstraint("user_id", name="uq_user_cart"),)
 

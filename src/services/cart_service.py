@@ -1,60 +1,81 @@
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 from database import CartItemModel, CartModel, MovieModel, UserModel
 
 
 class CartService:
     @staticmethod
-    def add_movie_to_cart_service(user: UserModel, movie: [MovieModel], db: Session):
+    async def add_movie_to_cart_service(
+        user: UserModel, movie: MovieModel, db: AsyncSession
+    ):
         if movie.is_purchased:
             raise ValueError("This movie has already been purchased.")
 
         if movie.amount == 0:
             raise ValueError("There is no movie to purchase.")
 
-        cart = user.cart
-        if not cart:
+        # Preload the cart and its items using joinedload to prevent N+1 queries
+        stmt = select(UserModel).options(joinedload(UserModel.cart))  # Preload the cart
+        result = await db.execute(stmt)
+        user = result.scalars().first()
+
+        if not user.cart:
+            # Create a new cart if not exists
             cart = CartModel(user_id=user.id)
             db.add(cart)
-            db.commit()
-            db.refresh(cart)
+            await db.commit()
+            await db.refresh(cart)
+        else:
+            cart = user.cart
 
-        existing_item = (
-            db.query(CartItemModel)
-            .filter(
-                CartItemModel.cart_id == cart.id, CartItemModel.movie_id == movie.id
-            )
-            .first()
+        # Check if the movie is already in the cart
+        stmt = select(CartItemModel).filter(
+            CartItemModel.cart_id == cart.id, CartItemModel.movie_id == movie.id
         )
+        result = await db.execute(stmt)
+        existing_item = result.scalars().first()
+
         if existing_item:
             raise ValueError("This movie is already in your cart.")
 
+        # Add new cart item
         cart_item = CartItemModel(cart_id=cart.id, movie_id=movie.id)
         db.add(cart_item)
-        db.commit()
-        db.refresh(cart_item)
+        await db.commit()
+        await db.refresh(cart_item)
+        return cart
 
     @staticmethod
-    def remove_movie_from_cart_service(user: UserModel, movie: MovieModel, db: Session):
+    async def remove_movie_from_cart_service(
+        user: UserModel, movie_id: int, db: AsyncSession
+    ):
         cart = user.cart
         if not cart:
             raise ValueError("Cart not found.")
 
         cart_item = (
-            db.query(CartItemModel)
-            .filter(
-                CartItemModel.cart_id == cart.id, CartItemModel.movie_id == movie.id
+            (
+                await db.execute(
+                    select(CartItemModel).filter(
+                        CartItemModel.cart_id == cart.id,
+                        CartItemModel.movie_id == movie_id,
+                    )
+                )
             )
+            .scalars()
             .first()
         )
+
         if not cart_item:
             raise ValueError("Movie not found in cart.")
 
-        db.delete(cart_item)
-        db.commit()
+        await db.delete(cart_item)
+        await db.commit()
 
     @staticmethod
-    def view_cart_service(user: UserModel, db: Session):
+    async def view_cart_service(user: UserModel, db: AsyncSession):
         cart = user.cart
         if not cart:
             return []
@@ -71,7 +92,7 @@ class CartService:
         ]
 
     @staticmethod
-    def clear_cart_service(user: UserModel, db: Session):
+    async def clear_cart_service(user: UserModel, db: AsyncSession):
         cart = user.cart
         if not cart:
             raise ValueError("Cart not found.")
@@ -82,7 +103,7 @@ class CartService:
         db.commit()
 
     @staticmethod
-    def checkout_cart_service(user: UserModel, db: Session):
+    async def checkout_cart_service(user: UserModel, db: AsyncSession):
         cart = user.cart
         if not cart:
             raise ValueError("Cart not found.")

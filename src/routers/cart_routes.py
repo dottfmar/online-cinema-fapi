@@ -1,11 +1,13 @@
 # isort: skip_file
 from typing import List
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session, joinedload
 
-from database import CartItemModel, MovieModel, UserModel
-from dependencies import get_current_user, get_db
+from database import CartItemModel, MovieModel, UserModel, CartModel
+from dependencies import get_current_user, get_db, get_db_sync
 from schemas import AddMovieToCartSchema, CartItemSchema, CartSchema
 from services import CartService
 
@@ -16,60 +18,50 @@ router = APIRouter()
 async def add_movie_to_cart(
     add_movie: AddMovieToCartSchema,
     current_user: UserModel = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Adds a movie to the user's cart.
-
-    **Query Parameters:**
-    - `movie_id`: The ID of the movie to be added to the cart.
-
-    **Response:**
-    Returns the updated cart after the movie is added.
-
-    **Errors:**
-    - 404: If the movie is not found.
-    - 400: If there was an error adding the movie to the cart.
     """
-    movie: [MovieModel] = (
-        db.query(MovieModel).filter(MovieModel.id == add_movie.movie_id).first()
-    )
+    stmt = select(MovieModel).filter(MovieModel.id == add_movie.movie_id)
+    result = await db.execute(stmt)
+    movie = result.scalars().first()
+
     if not movie:
         raise HTTPException(status_code=404, detail="Movie not found")
 
-    # Using service function to add movie to the cart
     try:
-        cart = CartService.add_movie_to_cart_service(current_user, movie, db)
+        cart = await CartService.add_movie_to_cart_service(current_user, movie, db)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    return CartSchema.from_orm(cart)
+    return await CartSchema.model_validate(cart)
 
 
 @router.get("/cart/", response_model=CartSchema)
-async def get_cart(
-    current_user: UserModel = Depends(get_current_user), db: Session = Depends(get_db)
+def get_cart(
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db_sync),
 ):
-    """
-    Retrieves the user's cart information.
+    stmt = (
+        select(CartModel)
+        .options(joinedload(CartModel.items))  # Загружаем связанные элементы
+        .filter(CartModel.user_id == current_user.id)
+    )
+    result = db.execute(stmt)
+    cart = result.scalars().first()
 
-    **Response:**
-    Returns the current user's cart.
-
-    **Errors:**
-    - 404: If the user's cart does not exist.
-    """
-    if not current_user.cart:
+    if not cart:
         raise HTTPException(status_code=404, detail="Cart not found")
 
-    return CartSchema.from_orm(current_user.cart)
+    return CartSchema.model_validate(cart)
 
 
 @router.delete("/cart/", response_model=CartSchema)
 async def remove_movie_from_cart(
     movie_id: int,
     current_user: UserModel = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Removes a movie from the user's cart.
@@ -85,16 +77,19 @@ async def remove_movie_from_cart(
     """
     # Using service function to remove movie from the cart
     try:
-        cart = CartService.remove_movie_from_cart_service(current_user, movie_id, db)
+        cart = await CartService.remove_movie_from_cart_service(
+            current_user, movie_id, db
+        )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
-    return CartSchema.from_orm(cart)
+    return await CartSchema.from_orm(cart)
 
 
 @router.delete("/cart/clear/", response_model=CartSchema)
 async def clear_cart(
-    current_user: UserModel = Depends(get_current_user), db: Session = Depends(get_db)
+    current_user: UserModel = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Clears the user's cart.
@@ -118,7 +113,7 @@ async def clear_cart(
 async def checkout_cart(
     background_tasks: BackgroundTasks,
     current_user: UserModel = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Checks out the user's cart and processes payment.
@@ -142,7 +137,7 @@ async def checkout_cart(
 async def get_movie_in_cart(
     movie_id: int,
     current_user: UserModel = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Retrieves a movie's information from the user's cart.
@@ -179,7 +174,7 @@ async def update_movie_quantity_in_cart(
     movie_id: int,
     quantity: int,
     current_user: UserModel = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Updates the quantity of a movie in the user's cart.
@@ -223,7 +218,8 @@ async def update_movie_quantity_in_cart(
 
 @router.get("/cart/items/", response_model=List[CartItemSchema])
 async def get_cart_items(
-    current_user: UserModel = Depends(get_current_user), db: Session = Depends(get_db)
+    current_user: UserModel = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Retrieves all items in the user's cart.

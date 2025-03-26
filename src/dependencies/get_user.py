@@ -1,5 +1,3 @@
-# isort: skip_file
-
 from fastapi import Depends, HTTPException, Security
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import select
@@ -8,9 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from config import get_jwt_auth_manager
 from database import UserModel
 from dependencies.database_session import get_db
-
-# from exceptions import BaseSecurityError
-# from security.http import get_token
 from security.interfaces import JWTAuthManagerInterface
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login/")

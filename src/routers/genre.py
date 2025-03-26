@@ -5,7 +5,8 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import services.genre_service as genre_service
-from database import GenreModel, MovieModel, MoviesGenresModel
+from database import GenreModel, MovieModel, MoviesGenresModel, UserModel
+from dependencies import get_current_user
 from dependencies.database_session import get_db
 from schemas.genre import (
     GenreCreateSchema,
@@ -16,6 +17,7 @@ from schemas.genre import (
     MovieForGenresSchema,
     GenreListResponseSchema,
 )
+from services.user_service import check_admin_or_moderator
 
 router = APIRouter(prefix="/genres", tags=["Genres"])
 
@@ -165,9 +167,9 @@ async def get_genre_by_id(genre_id: int, db: AsyncSession = Depends(get_db)):
 async def create_genre(
     genre: GenreCreateSchema,
     db: AsyncSession = Depends(get_db),
-    # current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_user),
 ):
-    # check_admin_or_moderator(current_user)
+    check_admin_or_moderator(current_user)
 
     new_genre = await genre_service.create_genre(db, genre)
     if not new_genre:

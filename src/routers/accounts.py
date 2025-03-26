@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from typing import cast
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import delete, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -440,38 +441,20 @@ async def reset_password(
         },
     },
 )
+@router.post("/login/")
 async def login_user(
-    login_data: UserLoginRequestSchema,
+    form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db),
     settings: BaseAppSettings = Depends(get_settings),
     jwt_manager: JWTAuthManagerInterface = Depends(get_jwt_auth_manager),
-) -> UserLoginResponseSchema:
-    """
-    Endpoint for user login.
-
-    Authenticates a user using their email and password.
-    If authentication is successful, creates a new refresh token and returns both access and refresh tokens.
-
-    Args:
-        login_data (UserLoginRequestSchema): The login credentials.
-        db (AsyncSession): The asynchronous database session.
-        settings (BaseAppSettings): The application settings.
-        jwt_manager (JWTAuthManagerInterface): The JWT authentication manager.
-
-    Returns:
-        UserLoginResponseSchema: A response containing the access and refresh tokens.
-
-    Raises:
-        HTTPException:
-            - 401 Unauthorized if the email or password is invalid.
-            - 403 Forbidden if the user account is not activated.
-            - 500 Internal Server Error if an error occurs during token creation.
-    """
-    stmt = select(UserModel).filter_by(email=login_data.email)
+):
+    stmt = select(UserModel).filter_by(
+        email=form_data.username
+    )  # username вместо email
     result = await db.execute(stmt)
     user = result.scalars().first()
 
-    if not user or not user.verify_password(login_data.password):
+    if not user or not user.verify_password(form_data.password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password.",
@@ -502,7 +485,6 @@ async def login_user(
         )
 
     jwt_access_token = jwt_manager.create_access_token({"email": user.email})
-    print("JWT access token: ", jwt_access_token)
     return UserLoginResponseSchema(
         access_token=jwt_access_token,
         refresh_token=jwt_refresh_token,

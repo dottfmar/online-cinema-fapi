@@ -13,17 +13,17 @@ class EmailSender(EmailSenderInterface):
 
     def __init__(
         self,
-        hostname: str,
-        port: int,
-        email: str,
-        password: str,
-        use_tls: bool,
-        template_dir: str,
-        activation_email_template_name: str,
-        activation_complete_email_template_name: str,
-        password_email_template_name: str,
-        password_complete_email_template_name: str,
-        successfully_payment_email_template_name: str,
+        hostname: str = "",
+        port: int = "",
+        email: str = "",
+        password: str = "",
+        use_tls: bool = "",
+        template_dir: str = "",
+        activation_email_template_name: str = "",
+        activation_complete_email_template_name: str = "",
+        password_email_template_name: str = "",
+        password_complete_email_template_name: str = "",
+        successfully_payment_email_template_name: str = "",
     ):
         self._hostname = hostname
         self._port = port

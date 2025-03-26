@@ -146,3 +146,18 @@ class MovieCreateUpdateResponseSchema(BaseModel):
     directors: List[DirectorResponseSchema]
 
     model_config = {"from_attributes": True}
+
+
+class MovieDetailResponseSchema(BaseModel):
+    id: int
+    uuid: uuid.UUID
+    name: str
+    year: int
+    time: int
+    imdb: float
+    votes: int
+    meta_score: Optional[float]
+    gross: Optional[float]
+    description: Optional[str]
+    price: Decimal = Field(..., ge=0)
+    amount: int

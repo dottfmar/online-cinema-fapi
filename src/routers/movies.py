@@ -36,6 +36,7 @@ from schemas.movies import (
     MovieListResponseSchema,
     MovieResponseSchema,
     MovieUpdateRequestSchema,
+    MovieDetailResponseSchema,
 )
 from services.movie_service import (
     filter_favorites,
@@ -52,60 +53,80 @@ from services.user_service import check_admin_or_moderator
 router = APIRouter(prefix="/movies", tags=["Movies"])
 
 
-@router.get("/", response_model=MovieListResponseSchema)
-async def get_movie_list(
+@router.get("/movies")
+async def get_movies(
+    db: AsyncSession = Depends(get_db),
     page: int = Query(1, ge=1, description="Page number (1-based index)"),
     per_page: int = Query(10, ge=1, le=20, description="Number of items per page"),
-    db: AsyncSession = Depends(get_db),
-) -> MovieListResponseSchema:
+    min_price: float = Query(None, description="Filter by minimum price"),
+    max_price: float = Query(None, description="Filter by maximum price"),
+    sort_by: str = Query(
+        None, description="Sort by this field (e.g., 'price', 'name')"
+    ),
+    sort_order: str = Query(
+        "asc", regex="^(asc|desc)$", description="Sort order ('asc' or 'desc')"
+    ),
+):
+    total_items_query = select(func.count()).select_from(MovieModel)
 
-    offset = (page - 1) * per_page
+    if min_price is not None:
+        total_items_query = total_items_query.filter(MovieModel.price >= min_price)
+    if max_price is not None:
+        total_items_query = total_items_query.filter(MovieModel.price <= max_price)
 
-    count_stmt = select(func.count(MovieModel.id))
-    result_count = await db.execute(count_stmt)
-    total_items = result_count.scalar() or 0
+    total_items = (await db.execute(total_items_query)).scalar()
 
-    if not total_items:
-        raise HTTPException(status_code=404, detail="No movies found.")
+    if total_items == 0:
+        return {
+            "movies": [],
+            "total_items": 0,
+            "total_pages": 0,
+            "current_page": page,
+        }
 
-    order_by = MovieModel.default_order_by()
-    stmt = select(MovieModel)
-    if order_by:
-        stmt = stmt.order_by(*order_by)
+    query = select(MovieModel)
 
-    stmt = stmt.offset(offset).limit(per_page)
+    if min_price is not None:
+        query = query.filter(MovieModel.price >= min_price)
+    if max_price is not None:
+        query = query.filter(MovieModel.price <= max_price)
 
-    result_movies = await db.execute(stmt)
-    movies = result_movies.scalars().all()
-
-    if not movies:
-        raise HTTPException(status_code=404, detail="No movies found.")
-
-    movie_list = [MovieListItemSchema.model_validate(movie) for movie in movies]
-
+    if sort_by:
+        if sort_by == "price":
+            query = query.order_by(
+                MovieModel.price.asc()
+                if sort_order == "asc"
+                else MovieModel.price.desc()
+            )
+        elif sort_by == "name":
+            query = query.order_by(
+                MovieModel.name.asc() if sort_order == "asc" else MovieModel.name.desc()
+            )
     total_pages = (total_items + per_page - 1) // per_page
+    query = query.offset((page - 1) * per_page).limit(per_page)
 
-    response = MovieListResponseSchema(
-        movies=movie_list,
-        prev_page=(
-            f"/theater/movies/?page={page - 1}&per_page={per_page}"
-            if page > 1
-            else None
-        ),
-        next_page=(
-            f"/theater/movies/?page={page + 1}&per_page={per_page}"
-            if page < total_pages
-            else None
-        ),
-        total_pages=total_pages,
-        total_items=total_items,
-    )
-    return response
+    result = await db.execute(query)
+    movies = result.scalars().all()
+
+    return {
+        "movies": movies,
+        "total_items": total_items,
+        "total_pages": total_pages,
+        "current_page": page,
+    }
 
 
-@router.get("/{movie_id}/", response_model=MovieResponseSchema)
-async def get_movie(movie_id: int, session: AsyncSession = Depends(get_db)):
-    movie = await get_movie_by_id(movie_id, session)
+@router.get("/{movie_id}", response_model=MovieDetailResponseSchema)
+async def get_movie_by_id(
+    movie_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(MovieModel).filter(MovieModel.id == movie_id))
+    movie = result.scalars().first()
+
+    if not movie:
+        raise HTTPException(status_code=404, detail="Movie not found")
+
     return movie
 
 

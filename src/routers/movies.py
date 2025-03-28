@@ -5,6 +5,7 @@ from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy import func, or_
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import joinedload
@@ -25,35 +26,33 @@ from database import (
     StarModel,
     StarsMoviesModel,
     UserModel,
+    CertificationModel,
 )
 from dependencies import get_current_user, get_db
 from schemas.movies import (
     CommentCreateSchema,
     CommentResponseSchema,
     LikeResponseSchema,
-    MovieCreateRequestSchema,
+    MovieCreateSchema,
     MovieListItemSchema,
     MovieListResponseSchema,
     MovieResponseSchema,
-    MovieUpdateRequestSchema,
     MovieDetailResponseSchema,
+    MovieCreateUpdateResponseSchema,
+    MovieUpdateSchema,
 )
 from services.movie_service import (
     filter_favorites,
-    filter_movies,
-    get_movie_by_id,
-    get_total_count,
-    paginate,
     send_notification,
     sort_favorites,
-    sort_movies,
+    get_movies_service,
 )
 from services.user_service import check_admin_or_moderator
 
 router = APIRouter(prefix="/movies", tags=["Movies"])
 
 
-@router.get("/movies")
+@router.get("/", response_model=MovieListResponseSchema)
 async def get_movies(
     db: AsyncSession = Depends(get_db),
     page: int = Query(1, ge=1, description="Page number (1-based index)"),
@@ -66,54 +65,11 @@ async def get_movies(
     sort_order: str = Query(
         "asc", regex="^(asc|desc)$", description="Sort order ('asc' or 'desc')"
     ),
+    search_term: str = Query(None, description="Search by movie name"),
 ):
-    total_items_query = select(func.count()).select_from(MovieModel)
-
-    if min_price is not None:
-        total_items_query = total_items_query.filter(MovieModel.price >= min_price)
-    if max_price is not None:
-        total_items_query = total_items_query.filter(MovieModel.price <= max_price)
-
-    total_items = (await db.execute(total_items_query)).scalar()
-
-    if total_items == 0:
-        return {
-            "movies": [],
-            "total_items": 0,
-            "total_pages": 0,
-            "current_page": page,
-        }
-
-    query = select(MovieModel)
-
-    if min_price is not None:
-        query = query.filter(MovieModel.price >= min_price)
-    if max_price is not None:
-        query = query.filter(MovieModel.price <= max_price)
-
-    if sort_by:
-        if sort_by == "price":
-            query = query.order_by(
-                MovieModel.price.asc()
-                if sort_order == "asc"
-                else MovieModel.price.desc()
-            )
-        elif sort_by == "name":
-            query = query.order_by(
-                MovieModel.name.asc() if sort_order == "asc" else MovieModel.name.desc()
-            )
-    total_pages = (total_items + per_page - 1) // per_page
-    query = query.offset((page - 1) * per_page).limit(per_page)
-
-    result = await db.execute(query)
-    movies = result.scalars().all()
-
-    return {
-        "movies": movies,
-        "total_items": total_items,
-        "total_pages": total_pages,
-        "current_page": page,
-    }
+    return await get_movies_service(
+        db, page, per_page, min_price, max_price, sort_by, sort_order, search_term
+    )
 
 
 @router.get("/{movie_id}", response_model=MovieDetailResponseSchema)
@@ -441,155 +397,213 @@ async def rate_movie(
     return {"message": "Rating submitted successfully", "rating": rating}
 
 
-@router.post(
-    "/", response_model=MovieResponseSchema, status_code=status.HTTP_201_CREATED
-)
+@router.post("/movies/", response_model=MovieCreateSchema)
 async def create_movie(
-    movie_data: MovieCreateRequestSchema,
-    session: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    movie: MovieCreateUpdateResponseSchema,
+    db: AsyncSession = Depends(get_db),
+    get_current_user: UserModel = Depends(get_current_user),
 ):
-    check_admin_or_moderator(current_user)
+    try:
+        await check_admin_or_moderator(get_current_user)
 
-    existing_movie = await session.execute(
-        select(MovieModel).where(
-            MovieModel.name == movie_data.name, MovieModel.year == movie_data.year
-        )
-    )
-    if existing_movie.scalar():
-        raise HTTPException(
-            status_code=400, detail="Movie with this name and year already exists"
-        )
-
-    new_movie = MovieModel(
-        name=movie_data.name,
-        year=movie_data.year,
-        time=movie_data.time,
-        imdb=movie_data.imdb,
-        votes=movie_data.votes,
-        meta_score=movie_data.meta_score,
-        gross=movie_data.gross,
-        description=movie_data.description,
-        price=movie_data.price,
-        amount=movie_data.amount,
-        certification_id=movie_data.certification_id,
-    )
-    session.add(new_movie)
-    await session.commit()
-    await session.refresh(new_movie)
-
-    if movie_data.genres:
-        for genre_id in movie_data.genres:
-            session.add(MoviesGenresModel(movie_id=new_movie.id, genre_id=genre_id))
-
-    if movie_data.stars:
-        for star_id in movie_data.stars:
-            session.add(StarsMoviesModel(movie_id=new_movie.id, star_id=star_id))
-
-    if movie_data.directors:
-        for director_id in movie_data.directors:
-            session.add(
-                MoviesDirectorsModel(movie_id=new_movie.id, director_id=director_id)
+        result = await db.execute(
+            select(CertificationModel).filter(
+                CertificationModel.id == movie.certification_id
             )
+        )
+        certification = result.scalars().first()
+        if not certification:
+            raise HTTPException(status_code=404, detail="Certification not found")
 
-    await session.commit()
-    await session.refresh(new_movie)
+        new_movie = MovieModel(
+            name=movie.name,
+            year=movie.year,
+            time=movie.time,
+            imdb=movie.imdb,
+            votes=movie.votes,
+            meta_score=movie.meta_score,
+            gross=movie.gross,
+            description=movie.description,
+            price=movie.price,
+            amount=movie.amount,
+            is_purchased=movie.is_purchased,
+            certification_id=movie.certification_id,
+        )
 
-    return new_movie
+        result = await db.execute(
+            select(GenreModel).filter(GenreModel.id.in_(movie.genre_ids))
+        )
+        genres = result.scalars().all()
+        if len(genres) != len(movie.genre_ids):
+            raise HTTPException(status_code=404, detail="Some genres not found")
+        new_movie.genres = genres
+
+        result = await db.execute(
+            select(StarModel).filter(StarModel.id.in_(movie.star_ids))
+        )
+        stars = result.scalars().all()
+        if len(stars) != len(movie.star_ids):
+            raise HTTPException(status_code=404, detail="Some stars not found")
+        new_movie.stars = stars
+
+        result = await db.execute(
+            select(DirectorModel).filter(DirectorModel.id.in_(movie.director_ids))
+        )
+        directors = result.scalars().all()
+        if len(directors) != len(movie.director_ids):
+            raise HTTPException(status_code=404, detail="Some directors not found")
+        new_movie.directors = directors
+
+        db.add(new_movie)
+        await db.commit()
+        await db.refresh(new_movie)
+
+        return {
+            "message": "Movie created successfully",
+            "movie": {
+                "id": new_movie.id,
+                "name": new_movie.name,
+                "year": new_movie.year,
+                "imdb": new_movie.imdb,
+                "genres": [genre.name for genre in new_movie.genres],
+                "stars": [star.name for star in new_movie.stars],
+                "directors": [director.name for director in new_movie.directors],
+            },
+        }
+
+    except SQLAlchemyError:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail="Database error occurred")
 
 
-@router.patch(
-    "/{movie_id}/", response_model=MovieResponseSchema, status_code=status.HTTP_200_OK
-)
+@router.patch("/movies/{movie_id}", response_model=MovieCreateUpdateResponseSchema)
 async def update_movie(
     movie_id: int,
-    movie_data: MovieUpdateRequestSchema,
-    session: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    movie: MovieUpdateSchema,
+    db: AsyncSession = Depends(get_db),
+    get_current_user: UserModel = Depends(get_current_user),
 ):
-    check_admin_or_moderator(current_user)
+    try:
+        await check_admin_or_moderator(get_current_user)
 
-    stmt = select(MovieModel).where(MovieModel.id == movie_id)
-    result = await session.execute(stmt)
-    movie = result.scalar_one_or_none()
+        result = await db.execute(select(MovieModel).filter(MovieModel.id == movie_id))
+        movie_to_update = result.scalars().first()
 
-    if not movie:
-        raise HTTPException(status_code=404, detail="Movie not found")
+        if not movie_to_update:
+            raise HTTPException(status_code=404, detail="Movie not found")
 
-    if movie_data.name is not None:
-        movie.name = movie_data.name
-    if movie_data.year is not None:
-        movie.year = movie_data.year
-    if movie_data.time is not None:
-        movie.time = movie_data.time
-    if movie_data.imdb is not None:
-        movie.imdb = movie_data.imdb
-    if movie_data.votes is not None:
-        movie.votes = movie_data.votes
-    if movie_data.meta_score is not None:
-        movie.meta_score = movie_data.meta_score
-    if movie_data.gross is not None:
-        movie.gross = movie_data.gross
-    if movie_data.description is not None:
-        movie.description = movie_data.description
-    if movie_data.price is not None:
-        movie.price = movie_data.price
-    if movie_data.amount is not None:
-        movie.amount = movie_data.amount
-    if movie_data.certification_id is not None:
-        movie.certification_id = movie_data.certification_id
+        if movie.name is not None:
+            movie_to_update.name = movie.name
+        if movie.year is not None:
+            movie_to_update.year = movie.year
+        if movie.time is not None:
+            movie_to_update.time = movie.time
+        if movie.imdb is not None:
+            movie_to_update.imdb = movie.imdb
+        if movie.votes is not None:
+            movie_to_update.votes = movie.votes
+        if movie.meta_score is not None:
+            movie_to_update.meta_score = movie.meta_score
+        if movie.gross is not None:
+            movie_to_update.gross = movie.gross
+        if movie.description is not None:
+            movie_to_update.description = movie.description
+        if movie.price is not None:
+            movie_to_update.price = movie.price
+        if movie.amount is not None:
+            movie_to_update.amount = movie.amount
+        if movie.is_purchased is not None:
+            movie_to_update.is_purchased = movie.is_purchased
 
-    if movie_data.genres is not None:
-        genres = await session.execute(
-            select(GenreModel).filter(GenreModel.id.in_(movie_data.genres))
+        if movie.certification_id is not None:
+            certification = await db.execute(
+                select(CertificationModel).filter(
+                    CertificationModel.id == movie.certification_id
+                )
+            )
+            certification_obj = certification.scalars().first()
+            if not certification_obj:
+                raise HTTPException(status_code=404, detail="Certification not found")
+            movie_to_update.certification_id = movie.certification_id
+
+        if movie.genre_ids is not None:
+            genres = await db.execute(
+                select(GenreModel).filter(GenreModel.id.in_(movie.genre_ids))
+            )
+            genres_list = genres.scalars().all()
+            if len(genres_list) != len(movie.genre_ids):
+                raise HTTPException(status_code=404, detail="Some genres not found")
+            movie_to_update.genres = genres_list
+
+        if movie.star_ids is not None:
+            stars = await db.execute(
+                select(StarModel).filter(StarModel.id.in_(movie.star_ids))
+            )
+            stars_list = stars.scalars().all()
+            if len(stars_list) != len(movie.star_ids):
+                raise HTTPException(status_code=404, detail="Some stars not found")
+            movie_to_update.stars = stars_list
+
+        if movie.director_ids is not None:
+            directors = await db.execute(
+                select(DirectorModel).filter(DirectorModel.id.in_(movie.director_ids))
+            )
+            directors_list = directors.scalars().all()
+            if len(directors_list) != len(movie.director_ids):
+                raise HTTPException(status_code=404, detail="Some directors not found")
+            movie_to_update.directors = directors_list
+
+        db.add(movie_to_update)
+        await db.commit()
+        await db.refresh(movie_to_update)
+
+        response_data = MovieCreateUpdateResponseSchema(
+            id=movie_to_update.id,
+            name=movie_to_update.name,
+            year=movie_to_update.year,
+            time=movie_to_update.time,
+            imdb=movie_to_update.imdb,
+            votes=movie_to_update.votes,
+            meta_score=movie_to_update.meta_score,
+            gross=movie_to_update.gross,
+            description=movie_to_update.description,
+            price=movie_to_update.price,
+            amount=movie_to_update.amount,
+            is_purchased=movie_to_update.is_purchased,
+            certification_id=movie_to_update.certification_id,
+            certification_name=movie_to_update.certification.name,
+            genres=[genre.name for genre in movie_to_update.genres],
+            stars=[star.name for star in movie_to_update.stars],
+            directors=[director.name for director in movie_to_update.directors],
         )
-        movie.genres = genres.scalars().all()
 
-    if movie_data.stars is not None:
-        stars = await session.execute(
-            select(StarModel).filter(StarModel.id.in_(movie_data.stars))
-        )
-        movie.stars = stars.scalars().all()
+        return response_data
 
-    if movie_data.directors is not None:
-        directors = await session.execute(
-            select(DirectorModel).filter(DirectorModel.id.in_(movie_data.directors))
-        )
-        movie.directors = directors.scalars().all()
-
-    await session.commit()
-    await session.refresh(movie)
-
-    return movie
+    except SQLAlchemyError:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail="Database error occurred")
 
 
-@router.delete("/{movie_id}/", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/movies/{movie_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_movie(
     movie_id: int,
-    session: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    get_current_user: UserModel = Depends(get_current_user),
 ):
-    check_admin_or_moderator(current_user)
+    try:
+        await check_admin_or_moderator(get_current_user)
 
-    stmt = select(MovieModel).where(MovieModel.id == movie_id)
-    result = await session.execute(stmt)
-    movie = result.scalar_one_or_none()
+        result = await db.execute(select(MovieModel).filter(MovieModel.id == movie_id))
+        movie_to_delete = result.scalars().first()
 
-    if not movie:
-        raise HTTPException(status_code=404, detail="Movie not found")
+        if not movie_to_delete:
+            raise HTTPException(status_code=404, detail="Movie not found")
 
-    order_item_stmt = (
-        select(OrderItemModel).join(MovieModel).where(MovieModel.id == movie_id)
-    )
-    order_item_result = await session.execute(order_item_stmt)
-    order_items = order_item_result.scalars().all()
+        await db.delete(movie_to_delete)
+        await db.commit()
 
-    if order_items:
-        raise HTTPException(
-            status_code=400, detail="Cannot delete movie, it has been purchased"
-        )
+        return {}
 
-    await session.delete(movie)
-    await session.commit()
-
-    return None
+    except SQLAlchemyError:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail="Database error occurred")

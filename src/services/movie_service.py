@@ -1,80 +1,115 @@
 # isort: skip_file
-from typing import Optional
 
 from fastapi import HTTPException
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, select, asc, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from database import (
     CommentModel,
-    DirectorModel,
     MovieModel,
     NotificationModel,
-    StarModel,
 )
 
 
-def paginate(query, page: int, per_page: int):
-    offset = (page - 1) * per_page
-    query = query.offset(offset).limit(per_page)
-    return query
+def apply_pagination(query, page, per_page, total_items):
+    total_pages = (total_items + per_page - 1) // per_page
+    query = query.offset((page - 1) * per_page).limit(per_page)
+
+    return query, total_pages
 
 
-def filter_movies(
-    query,
-    name: Optional[str] = None,
-    actor: Optional[str] = None,
-    director: Optional[str] = None,
-    description: Optional[str] = None,
-    min_price: Optional[float] = None,
-    max_price: Optional[float] = None,
-    min_rating: Optional[float] = None,
-    max_rating: Optional[float] = None,
-    search: Optional[str] = None,
-):
-    if name:
-        query = query.filter(MovieModel.name.ilike(f"%{name}%"))
-    if actor:
-        query = query.join(MovieModel.stars).filter(StarModel.name.ilike(f"%{actor}%"))
-    if director:
-        query = query.join(MovieModel.directors).filter(
-            DirectorModel.name.ilike(f"%{director}%")
-        )
-    if description:
-        query = query.filter(MovieModel.description.ilike(f"%{description}%"))
+def apply_filters(query, min_price, max_price):
     if min_price is not None:
         query = query.filter(MovieModel.price >= min_price)
     if max_price is not None:
         query = query.filter(MovieModel.price <= max_price)
-    if min_rating is not None:
-        query = query.filter(MovieModel.imdb >= min_rating)
-    if max_rating is not None:
-        query = query.filter(MovieModel.imdb <= max_rating)
-    if search:
-        search_filter = or_(
-            MovieModel.name.ilike(f"%{search}%"),
-            MovieModel.description.ilike(f"%{search}%"),
-            StarModel.name.ilike(f"%{search}%"),
-            DirectorModel.name.ilike(f"%{search}%"),
-        )
-        query = query.filter(search_filter)
 
     return query
 
 
-def sort_movies(query, sort_by: str, sort_order: str):
-    if sort_by not in ["name", "price", "imdb", "year"]:
-        raise HTTPException(status_code=400, detail="Invalid sort field.")
-    if sort_order not in ["asc", "desc"]:
-        raise HTTPException(status_code=400, detail="Invalid sort order.")
-
-    if sort_order == "asc":
-        query = query.order_by(getattr(MovieModel, sort_by).asc())
-    else:
-        query = query.order_by(getattr(MovieModel, sort_by).desc())
+def apply_sorting(query, sort_by, sort_order):
+    if sort_by:
+        if sort_by == "price":
+            query = query.order_by(
+                asc(MovieModel.price) if sort_order == "asc" else desc(MovieModel.price)
+            )
+        elif sort_by == "name":
+            query = query.order_by(
+                asc(MovieModel.name) if sort_order == "asc" else desc(MovieModel.name)
+            )
 
     return query
+
+
+def apply_search(query, search_term):
+    if search_term:
+        query = query.filter(MovieModel.name.ilike(f"%{search_term}%"))
+    return query
+
+
+async def get_movies_service(
+    db: AsyncSession,
+    page: int,
+    per_page: int,
+    min_price: float = None,
+    max_price: float = None,
+    sort_by: str = None,
+    sort_order: str = "asc",
+    search_term: str = None,
+):
+    total_items_query = select(func.count(MovieModel.id))
+    total_items_query = apply_filters(total_items_query, min_price, max_price)
+    total_items_query = apply_search(total_items_query, search_term)
+
+    total_items = (await db.execute(total_items_query)).scalar()
+
+    if total_items == 0:
+        return {
+            "movies": [],
+            "total_items": 0,
+            "total_pages": 0,
+            "current_page": page,
+        }
+
+    query = select(MovieModel).options(selectinload(MovieModel.certification))
+
+    query = apply_filters(query, min_price, max_price)
+
+    query = apply_search(query, search_term)
+
+    query = apply_sorting(query, sort_by, sort_order)
+
+    query, total_pages = apply_pagination(query, page, per_page, total_items)
+
+    result = await db.execute(query)
+    movies = result.scalars().all()
+
+    # Перетворюємо дані про фільм у формат, що включає всі необхідні поля
+    movies_data = [
+        {
+            "id": movie.id,  # Додаємо id фільму
+            "name": movie.name,  # Додаємо назву фільму
+            "year": movie.year,  # Додаємо рік
+            "price": str(
+                movie.price
+            ),  # Додаємо ціну, якщо потрібно перетворити в строку
+            "imdb": movie.imdb,  # Додаємо рейтинг imdb
+            "votes": movie.votes,  # Додаємо кількість голосів
+            "description": movie.description,  # Додаємо опис
+            "certification": (
+                movie.certification.name if movie.certification else None
+            ),  # Ім'я сертифікації
+        }
+        for movie in movies
+    ]
+
+    return {
+        "movies": movies_data,
+        "total_items": total_items,
+        "total_pages": total_pages,
+        "current_page": page,
+    }
 
 
 async def get_total_count(db, query):

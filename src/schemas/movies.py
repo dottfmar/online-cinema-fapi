@@ -1,3 +1,4 @@
+import decimal
 import uuid
 from decimal import Decimal
 from typing import List, Optional
@@ -12,7 +13,9 @@ class MovieListItemSchema(BaseModel):
     id: int
     name: str
     year: int
-    certification: str
+    imdb: float
+    price: decimal.Decimal
+    certification: Optional[str]
 
     model_config = {"from_attributes": True}
 
@@ -25,40 +28,63 @@ class MovieListResponseSchema(BaseModel):
     total_items: int
 
 
-class MovieCreateRequestSchema(BaseModel):
-    name: str = Field(..., max_length=255)
-    year: int = Field(..., ge=1888)
-    time: int = Field(..., gt=0)
-    imdb: float = Field(..., ge=0, le=10)
-    votes: int = Field(..., ge=0)
-    meta_score: Optional[float] = Field(None, ge=0, le=100)
-    gross: Optional[float] = Field(None, ge=0)
-    description: Optional[str] = Field(None)
-    price: Decimal = Field(..., ge=0)
-    amount: int = Field(..., ge=0)
-    certification_id: int = Field(...)
-    genres: List[int] = Field(...)
-    stars: List[int] = Field(...)
-    directors: List[int] = Field(...)
+class MovieCreateSchema(BaseModel):
+    name: str
+    year: int
+    time: int
+    imdb: float
+    votes: int
+    meta_score: Optional[float] = None
+    gross: Optional[float] = None
+    description: str
+    price: float
+    amount: Optional[int] = None
+    certification_id: int
+    genre_ids: List[int]
+    star_ids: List[int]
+    director_ids: List[int]
 
     model_config = {"from_attributes": True}
 
 
-class MovieUpdateRequestSchema(BaseModel):
-    name: Optional[str] = Field(None, max_length=255)
-    year: Optional[int] = Field(None, ge=1888)
-    time: Optional[int] = Field(None, gt=0)
-    imdb: Optional[float] = Field(None, ge=0, le=10)
-    votes: Optional[int] = Field(None, ge=0)
-    meta_score: Optional[float] = Field(None, ge=0, le=100)
-    gross: Optional[float] = Field(None, ge=0)
-    description: Optional[str] = Field(None, max_length=1000)
-    price: Optional[Decimal] = Field(None, ge=0)
-    amount: Optional[int] = Field(None, ge=0)
-    certification_id: Optional[int] = Field(None, ge=1)
-    genres: Optional[List[int]] = Field(None, min_items=1)
-    stars: Optional[List[int]] = Field(None, min_items=1)
-    directors: Optional[List[int]] = Field(None, min_items=1)
+class MovieCreateUpdateResponseSchema(BaseModel):
+    id: int
+    name: str
+    year: int
+    time: int
+    imdb: float
+    votes: int
+    meta_score: Optional[float] = None
+    gross: Optional[float] = None
+    description: str
+    price: float
+    amount: Optional[int] = None
+    is_purchased: Optional[bool] = None
+    certification_id: int
+    certification_name: str
+    genres: List[str]
+    stars: List[str]
+    directors: List[str]
+
+    model_config = {"from_attributes": True}
+
+
+class MovieUpdateSchema(BaseModel):
+    name: Optional[str] = None
+    year: Optional[int] = None
+    time: Optional[int] = None
+    imdb: Optional[float] = None
+    votes: Optional[int] = None
+    meta_score: Optional[float] = None
+    gross: Optional[float] = None
+    description: Optional[str] = None
+    price: Optional[float] = None
+    amount: Optional[int] = None
+    is_purchased: Optional[bool] = None
+    certification_id: Optional[int] = None
+    genre_ids: Optional[List[int]] = None
+    star_ids: Optional[List[int]] = None
+    director_ids: Optional[List[int]] = None
 
     model_config = {"from_attributes": True}
 
@@ -123,27 +149,6 @@ class CommentResponseSchema(BaseModel):
     created_at: str
     user_id: int
     movie_id: int
-
-    model_config = {"from_attributes": True}
-
-
-class MovieCreateUpdateResponseSchema(BaseModel):
-    id: int
-    uuid: uuid.UUID
-    name: str
-    year: int
-    time: int
-    imdb: float
-    votes: int
-    meta_score: Optional[float]
-    gross: Optional[float]
-    description: Optional[str]
-    price: Decimal = Field(..., ge=0)
-    amount: int
-    certification_id: int
-    genres: List[GenreDetailSchema]
-    stars: List[StarListSchema]
-    directors: List[DirectorResponseSchema]
 
     model_config = {"from_attributes": True}
 

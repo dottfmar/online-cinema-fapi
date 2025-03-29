@@ -169,6 +169,24 @@ async def create_genre(
     db: AsyncSession = Depends(get_db),
     current_user: UserModel = Depends(get_current_user),
 ):
+    """
+    Create a new genre in the system.
+
+    This endpoint checks for the uniqueness of the genre name and creates a new genre if valid.
+    An error will be raised if the genre name already exists in the system.
+
+    :param genre: The data required to create the genre.
+    :type genre: GenreCreateSchema
+    :param db: The async SQLAlchemy database session (provided via dependency injection).
+    :type db: AsyncSession
+    :param current_user: The user making the request, validated via dependency injection.
+    :type current_user: UserModel
+
+    :return: A response containing the details of the created genre.
+    :rtype: GenreCreateUpdateResponseSchema
+
+    :raises HTTPException: Raises a 400 error if the genre name already exists.
+    """
     await check_admin_or_moderator(current_user)
 
     new_genre = await genre_service.create_genre(db, genre)
@@ -201,6 +219,26 @@ async def update_genre(
     db: AsyncSession = Depends(get_db),
     current_user: UserModel = Depends(get_current_user),
 ):
+    """
+    Update an existing genre's information.
+
+    This endpoint checks if the genre exists and applies the updated data for the genre.
+    If the genre does not exist, a 404 error will be raised.
+
+    :param genre_id: The ID of the genre to update.
+    :type genre_id: int
+    :param genre: The updated genre data.
+    :type genre: GenreUpdateSchema
+    :param db: The async SQLAlchemy database session (provided via dependency injection).
+    :type db: AsyncSession
+    :param current_user: The user making the request, validated via dependency injection.
+    :type current_user: UserModel
+
+    :return: A response containing the details of the updated genre.
+    :rtype: GenreCreateUpdateResponseSchema
+
+    :raises HTTPException: Raises a 404 error if the genre is not found.
+    """
     await check_admin_or_moderator(current_user)
 
     updated_genre = await genre_service.update_genre(db, genre_id, genre)
@@ -236,6 +274,24 @@ async def delete_genre(
     db: AsyncSession = Depends(get_db),
     current_user: UserModel = Depends(get_current_user),
 ):
+    """
+    Delete a genre from the system.
+
+    This endpoint allows you to delete a genre, but it will not delete the genre if there are related movies.
+    If the genre has related movies, an error will be raised.
+
+    :param genre_id: The ID of the genre to delete.
+    :type genre_id: int
+    :param db: The async SQLAlchemy database session (provided via dependency injection).
+    :type db: AsyncSession
+    :param current_user: The user making the request, validated via dependency injection.
+    :type current_user: UserModel
+
+    :return: None if the genre is deleted successfully.
+    :rtype: None
+
+    :raises HTTPException: Raises a 404 error if the genre is not found or has related movies.
+    """
     await check_admin_or_moderator(current_user)
 
     success = await genre_service.delete_genre(db, genre_id)

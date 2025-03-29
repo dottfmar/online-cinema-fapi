@@ -83,22 +83,17 @@ class MovieCreateRequestSchema(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class MovieUpdateSchema(BaseModel):
-    name: Optional[str] = None
-    year: Optional[int] = None
-    time: Optional[int] = None
-    imdb: Optional[float] = None
-    votes: Optional[int] = None
-    meta_score: Optional[float] = None
-    gross: Optional[float] = None
+class MovieUpdateRequestSchema(BaseModel):
+    name: Optional[str] = Field(None, max_length=255)
+    year: Optional[int] = Field(None, gt=1888, lt=3000)
+    time: Optional[int] = Field(None, gt=0)
+    imdb: Optional[float] = Field(None, gt=0)
+    votes: Optional[float] = Field(None, gt=0)
+    meta_score: Optional[float] = Field(None, gt=0)
+    gross: Optional[float] = Field(None, gt=0)
     description: Optional[str] = None
-    price: Optional[float] = None
+    price: Optional[float] = Field(None, gt=0)
     amount: Optional[int] = None
-    is_purchased: Optional[bool] = None
-    certification_id: Optional[int] = None
-    genre_ids: Optional[List[int]] = None
-    star_ids: Optional[List[int]] = None
-    director_ids: Optional[List[int]] = None
 
     model_config = {"from_attributes": True}
 

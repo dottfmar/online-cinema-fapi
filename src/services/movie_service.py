@@ -20,6 +20,7 @@ from schemas.movies import (
     MovieDetailResponseSchema,
     MovieCreateRequestSchema,
     MovieCreateUpdateResponseSchema,
+    MovieUpdateRequestSchema,
 )
 from schemas.star import StarListSchema
 
@@ -248,6 +249,47 @@ async def create_movie_service(
     except IntegrityError:
         await db.rollback()
         raise HTTPException(status_code=400, detail="Invalid input data.")
+
+
+async def update_movie_service(
+    movie_id: int, movie_data: MovieUpdateRequestSchema, db: AsyncSession
+):
+    stmt = select(MovieModel).where(MovieModel.id == movie_id)
+    result = await db.execute(stmt)
+    movie = result.scalars().first()
+
+    if not movie:
+        raise HTTPException(
+            status_code=404, detail="Movie with the given ID was not found."
+        )
+
+    for field, value in movie_data.model_dump(exclude_unset=True).items():
+        setattr(movie, field, value)
+
+    try:
+        await db.commit()
+        await db.refresh(movie)
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail="Invalid input data.")
+
+    return {"detail": "Movie updated successfully."}
+
+
+async def delete_movie_service(movie_id: int, db: AsyncSession):
+    stmt = select(MovieModel).where(MovieModel.id == movie_id)
+    result = await db.execute(stmt)
+    movie = result.scalars().first()
+
+    if not movie:
+        raise HTTPException(
+            status_code=404, detail="Movie with the given ID was not found."
+        )
+
+    await db.delete(movie)
+    await db.commit()
+
+    return {"detail": "Movie deleted successfully."}
 
 
 def filter_favorites(query, name: str, min_price: float, max_price: float):

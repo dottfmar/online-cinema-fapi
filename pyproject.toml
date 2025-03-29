@@ -4,7 +4,7 @@ version = "0.1.0"
 description = ""
 authors = [
     "Mariana Lishchynska <lishchynska.m@gmail.com>",
-    "Pastukhov Oleksii <oleksii.pastukhov.py@gmail.com>"
+    "Pastukhov Oleksii <oleksii.pastukhov.py@gmail.com>",
     "Barabanov Oleksandr <oleksandr.barabanov.py@gmail.com>"
 ]
 readme = "README.md"

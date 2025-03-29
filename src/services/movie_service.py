@@ -1,6 +1,6 @@
 # isort: skip_file
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 from fastapi import HTTPException, status
 from sqlalchemy import func, select, asc, desc
@@ -30,15 +30,22 @@ from schemas.movies import (
     MovieUpdateRequestSchema,
     NotificationResponseSchema,
     CommentCreateSchema,
+    MovieListResponseSchema,
+    MovieListItemSchema,
 )
 from schemas.star import StarListSchema
 
 
 def apply_pagination(query, page, per_page, total_items):
     total_pages = (total_items + per_page - 1) // per_page
-    query = query.offset((page - 1) * per_page).limit(per_page)
 
-    return query, total_pages
+    offset = (page - 1) * per_page
+    query = query.offset(offset).limit(per_page)
+
+    prev_page = page - 1 if page > 1 else None
+    next_page = page + 1 if page < total_pages else None
+
+    return query, total_pages, prev_page, next_page
 
 
 def apply_filters(query, min_price, max_price):
@@ -74,11 +81,11 @@ async def get_movies_service(
     db: AsyncSession,
     page: int,
     per_page: int,
-    min_price: float = None,
-    max_price: float = None,
-    sort_by: str = None,
+    min_price: Optional[float] = None,
+    max_price: Optional[float] = None,
+    sort_by: Optional[str] = None,
     sort_order: str = "asc",
-    search_term: str = None,
+    search_term: Optional[str] = None,
 ):
     total_items_query = select(func.count(MovieModel.id))
     total_items_query = apply_filters(total_items_query, min_price, max_price)
@@ -87,48 +94,55 @@ async def get_movies_service(
     total_items = (await db.execute(total_items_query)).scalar()
 
     if total_items == 0:
-        return {
-            "movies": [],
-            "total_items": 0,
-            "total_pages": 0,
-            "current_page": page,
-        }
+        return MovieListResponseSchema(
+            movies=[],
+            total_items=0,
+            total_pages=0,
+            current_page=page,
+        )
 
     query = select(MovieModel).options(selectinload(MovieModel.certification))
 
     query = apply_filters(query, min_price, max_price)
-
     query = apply_search(query, search_term)
-
     query = apply_sorting(query, sort_by, sort_order)
 
-    query, total_pages = apply_pagination(query, page, per_page, total_items)
+    query, total_pages, prev_page, next_page = apply_pagination(
+        query, page, per_page, total_items
+    )
 
     result = await db.execute(query)
     movies = result.scalars().all()
 
     movies_data = [
-        {
-            "id": movie.id,
-            "name": movie.name,
-            "year": movie.year,
-            "price": str(movie.price),
-            "imdb": movie.imdb,
-            "votes": movie.votes,
-            "description": movie.description,
-            "certification": (
-                movie.certification.name if movie.certification else None
-            ),
-        }
+        MovieListItemSchema(
+            id=movie.id,
+            name=movie.name,
+            year=movie.year,
+            imdb=movie.imdb,
+            price=str(movie.price),
+            certification=movie.certification.name if movie.certification else None,
+        )
         for movie in movies
     ]
 
-    return {
-        "movies": movies_data,
-        "total_items": total_items,
-        "total_pages": total_pages,
-        "current_page": page,
-    }
+    if total_pages > 1:
+        return MovieListResponseSchema(
+            movies=movies_data,
+            total_items=total_items,
+            total_pages=total_pages,
+            prev_page=prev_page,
+            current_page=page,
+            next_page=next_page,
+        )
+    else:
+        return MovieListResponseSchema(
+            movies=movies_data,
+            total_items=total_items,
+            total_pages=total_pages,
+            prev_page=None,
+            next_page=None,
+        )
 
 
 async def get_movie_by_id_service(

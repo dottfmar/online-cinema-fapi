@@ -5,7 +5,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
-from schemas.genre import GenreDetailSchema
+from schemas.genre import GenreCreateUpdateResponseSchema
 from schemas.star import StarListSchema
 
 
@@ -28,40 +28,54 @@ class MovieListResponseSchema(BaseModel):
     total_items: int
 
 
-class MovieCreateSchema(BaseModel):
+class DirectorResponseSchema(BaseModel):
+    id: int
     name: str
-    year: int
-    time: int
-    imdb: float
-    votes: int
-    meta_score: Optional[float] = None
-    gross: Optional[float] = None
-    description: str
-    price: float
-    amount: Optional[int] = None
-    certification_id: int
-    genre_ids: List[int]
-    star_ids: List[int]
-    director_ids: List[int]
+
+    model_config = {"from_attributes": True}
+
+
+class CertificationSchema(BaseModel):
+    id: int
+    name: str
 
     model_config = {"from_attributes": True}
 
 
 class MovieCreateUpdateResponseSchema(BaseModel):
     id: int
-    name: str
-    year: int
-    time: int
-    imdb: float
-    votes: int
-    meta_score: Optional[float] = None
-    gross: Optional[float] = None
+    name: str = Field(..., max_length=255)
+    uuid: uuid.UUID
+    year: int = Field(..., gt=1888, lt=3000)
+    time: int = Field(..., gt=0)
+    imdb: float = Field(..., gt=0)
+    votes: float = Field(..., gt=0)
+    meta_score: float = Optional[float]
+    gross: float = Optional[float]
     description: str
     price: float
+    amount: Optional[int]
+    is_purchased: bool
+    certification: CertificationSchema
+    genres: List[GenreCreateUpdateResponseSchema]
+    stars: List[StarListSchema]
+    directors: List[DirectorResponseSchema]
+
+    model_config = {"from_attributes": True}
+
+
+class MovieCreateRequestSchema(BaseModel):
+    name: str = Field(..., max_length=255)
+    year: int = Field(..., gt=1888, lt=3000)
+    time: int = Field(..., gt=0)
+    imdb: float = Field(..., gt=0)
+    votes: float = Field(..., gt=0)
+    meta_score: float = Field(..., gt=0)
+    gross: float = Field(..., gt=0)
+    description: str
+    price: float = Field(..., gt=0)
     amount: Optional[int] = None
-    is_purchased: Optional[bool] = None
-    certification_id: int
-    certification_name: str
+    certification: str
     genres: List[str]
     stars: List[str]
     directors: List[str]
@@ -89,42 +103,12 @@ class MovieUpdateSchema(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class DirectorResponseSchema(BaseModel):
-    id: int
-    name: str
-
-    model_config = {"from_attributes": True}
-
-
 class CommentSchema(BaseModel):
     id: int
     content: str
     created_at: str
     user_name: str
     likes_count: int
-
-    model_config = {"from_attributes": True}
-
-
-class MovieResponseSchema(BaseModel):
-    id: int
-    uuid: uuid.UUID
-    name: str
-    year: int
-    time: int
-    imdb: float
-    votes: int
-    meta_score: Optional[float]
-    gross: Optional[float]
-    description: Optional[str]
-    price: Decimal = Field(..., ge=0)
-    amount: int
-    certification_id: int
-    genres: List[GenreDetailSchema]
-    stars: List[StarListSchema]
-    directors: List[DirectorResponseSchema]
-    likes_count: int
-    comments: List[CommentSchema]
 
     model_config = {"from_attributes": True}
 
@@ -165,4 +149,7 @@ class MovieDetailResponseSchema(BaseModel):
     gross: Optional[float]
     description: Optional[str]
     price: Decimal = Field(..., ge=0)
+    directors: List[DirectorResponseSchema]
+    stars: List[StarListSchema]
+    genres: List[GenreCreateUpdateResponseSchema]
     amount: int

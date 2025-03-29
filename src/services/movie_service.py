@@ -1,15 +1,27 @@
 # isort: skip_file
 
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 from sqlalchemy import func, select, asc, desc
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from database import (
-    CommentModel,
     MovieModel,
     NotificationModel,
+    CertificationModel,
+    StarModel,
+    DirectorModel,
+    GenreModel,
 )
+from schemas.genre import GenreCreateUpdateResponseSchema
+from schemas.movies import (
+    DirectorResponseSchema,
+    MovieDetailResponseSchema,
+    MovieCreateRequestSchema,
+    MovieCreateUpdateResponseSchema,
+)
+from schemas.star import StarListSchema
 
 
 def apply_pagination(query, page, per_page, total_items):
@@ -85,21 +97,18 @@ async def get_movies_service(
     result = await db.execute(query)
     movies = result.scalars().all()
 
-    # Перетворюємо дані про фільм у формат, що включає всі необхідні поля
     movies_data = [
         {
-            "id": movie.id,  # Додаємо id фільму
-            "name": movie.name,  # Додаємо назву фільму
-            "year": movie.year,  # Додаємо рік
-            "price": str(
-                movie.price
-            ),  # Додаємо ціну, якщо потрібно перетворити в строку
-            "imdb": movie.imdb,  # Додаємо рейтинг imdb
-            "votes": movie.votes,  # Додаємо кількість голосів
-            "description": movie.description,  # Додаємо опис
+            "id": movie.id,
+            "name": movie.name,
+            "year": movie.year,
+            "price": str(movie.price),
+            "imdb": movie.imdb,
+            "votes": movie.votes,
+            "description": movie.description,
             "certification": (
                 movie.certification.name if movie.certification else None
-            ),  # Ім'я сертифікації
+            ),
         }
         for movie in movies
     ]
@@ -112,33 +121,133 @@ async def get_movies_service(
     }
 
 
-async def get_total_count(db, query):
-    count_stmt = select(func.count(MovieModel.id))
-    result_count = await db.execute(count_stmt)
-    return result_count.scalar() or 0
-
-
-async def get_movie_by_id(movie_id: int, session: AsyncSession) -> MovieModel:
-    query = (
+async def get_movie_by_id_service(
+    movie_id: int, db: AsyncSession
+) -> MovieDetailResponseSchema:
+    result = await db.execute(
         select(MovieModel)
         .options(
-            selectinload(MovieModel.comments).selectinload(CommentModel.comment_likes)
+            selectinload(MovieModel.genres),
+            selectinload(MovieModel.stars),
+            selectinload(MovieModel.directors),
         )
-        .where(MovieModel.id == movie_id)
+        .filter(MovieModel.id == movie_id)
     )
-
-    result = await session.execute(query)
-    movie = result.scalar_one_or_none()
+    movie = result.scalars().first()
 
     if not movie:
         raise HTTPException(status_code=404, detail="Movie not found")
 
-    movie.likes_count = len(movie.movie_likes)
+    return MovieDetailResponseSchema(
+        id=movie.id,
+        uuid=movie.uuid,
+        name=movie.name,
+        year=movie.year,
+        time=movie.time,
+        imdb=movie.imdb,
+        votes=movie.votes,
+        meta_score=movie.meta_score,
+        gross=movie.gross,
+        description=movie.description,
+        price=movie.price,
+        amount=movie.amount,
+        directors=[
+            DirectorResponseSchema(id=director.id, name=director.name)
+            for director in movie.directors
+        ],
+        stars=[StarListSchema(id=star.id, name=star.name) for star in movie.stars],
+        genres=[
+            GenreCreateUpdateResponseSchema(id=genre.id, name=genre.name)
+            for genre in movie.genres
+        ],
+    )
 
-    for comment in movie.comments:
-        comment.likes_count = len(comment.comment_likes)
 
-    return movie
+async def create_movie_service(
+    movie_data: MovieCreateRequestSchema, db: AsyncSession
+) -> MovieCreateUpdateResponseSchema:
+    existing_stmt = select(MovieModel).where(
+        (MovieModel.name == movie_data.name),
+        (MovieModel.year == movie_data.year),
+    )
+    existing_result = await db.execute(existing_stmt)
+    existing_movie = existing_result.scalars().first()
+
+    if existing_movie:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Movie already exists"
+        )
+    try:
+        certification_stmt = select(CertificationModel).where(
+            CertificationModel.name == movie_data.certification
+        )
+        certification_result = await db.execute(certification_stmt)
+        certification = certification_result.scalars().first()
+        if not certification:
+            certification = CertificationModel(name=movie_data.certification)
+            db.add(certification)
+            await db.flush()
+        genres = []
+        for genre_name in movie_data.genres:
+            genre_stmt = select(GenreModel).where(GenreModel.name == genre_name)
+            genre_result = await db.execute(genre_stmt)
+            genre = genre_result.scalars().first()
+
+            if not genre:
+                genre = GenreModel(name=genre_name)
+                db.add(genre)
+                await db.flush()
+            genres.append(genre)
+        directors = []
+        for director_name in movie_data.directors:
+            director_stmt = select(DirectorModel).where(
+                DirectorModel.name == director_name
+            )
+            director_result = await db.execute(director_stmt)
+            director = director_result.scalars().first()
+
+            if not director:
+                director = DirectorModel(name=director_name)
+                db.add(director)
+                await db.flush()
+            directors.append(director)
+        stars = []
+        for star_name in movie_data.stars:
+            star_stmt = select(StarModel).where(StarModel.name == star_name)
+            star_result = await db.execute(star_stmt)
+            star = star_result.scalars().first()
+
+            if not star:
+                star = StarModel(name=star_name)
+                db.add(star)
+                await db.flush()
+            stars.append(star)
+        new_movie = MovieModel(
+            name=movie_data.name,
+            year=movie_data.year,
+            time=movie_data.time,
+            imdb=movie_data.imdb,
+            votes=movie_data.votes,
+            meta_score=movie_data.meta_score,
+            gross=movie_data.gross,
+            description=movie_data.description,
+            price=movie_data.price,
+            amount=movie_data.amount,
+            is_purchased=False,
+            certification=certification,
+            genres=genres,
+            directors=directors,
+            stars=stars,
+        )
+        db.add(new_movie)
+        await db.commit()
+        await db.refresh(new_movie, ["genres", "directors", "stars"])
+
+        return MovieCreateUpdateResponseSchema.model_validate(new_movie)
+
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail="Invalid input data.")
 
 
 def filter_favorites(query, name: str, min_price: float, max_price: float):

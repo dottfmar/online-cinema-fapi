@@ -148,3 +148,18 @@ class MovieDetailResponseSchema(BaseModel):
     stars: List[StarListSchema]
     genres: List[GenreCreateUpdateResponseSchema]
     amount: int
+
+
+class NotificationResponseSchema(BaseModel):
+    id: int
+    message: str
+    is_read: bool
+
+    model_config = {"from_attributes": True}
+
+
+class NotificationsResponseSchema(BaseModel):
+    status: str
+    notifications: List[NotificationResponseSchema]
+
+    model_config = {"from_attributes": True}

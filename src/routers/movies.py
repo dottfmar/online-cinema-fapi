@@ -8,13 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from database import (
-    CommentModel,
     FavoritesModel,
-    LikeCommentModel,
-    LikeMovieModel,
     MovieModel,
     NotificationModel,
-    RatingModel,
     UserModel,
 )
 from dependencies import get_current_user, get_db
@@ -27,6 +23,7 @@ from schemas.movies import (
     MovieCreateResponseSchema,
     MovieCreateRequestSchema,
     MovieUpdateRequestSchema,
+    NotificationsResponseSchema,
 )
 from services.movie_service import (
     filter_favorites,
@@ -37,6 +34,12 @@ from services.movie_service import (
     create_movie_service,
     update_movie_service,
     delete_movie_service,
+    rate_movie_service,
+    like_movie_service,
+    create_comment_service,
+    like_comment_service,
+    get_notifications_service,
+    reply_to_comment_service,
 )
 from services.user_service import check_admin_or_moderator
 
@@ -108,27 +111,7 @@ async def like_movie(
     db: AsyncSession = Depends(get_db),
     user: UserModel = Depends(get_current_user),
 ):
-    result = await db.execute(select(MovieModel).filter(MovieModel.id == movie_id))
-    movie = result.scalars().first()
-    if not movie:
-        raise HTTPException(status_code=404, detail="Movie not found")
-
-    result = await db.execute(
-        select(LikeMovieModel).filter(
-            LikeMovieModel.user_id == user.id, LikeMovieModel.movie_id == movie_id
-        )
-    )
-    like = result.scalars().first()
-
-    if like:
-        like.status = not like.status
-    else:
-        like = LikeMovieModel(user_id=user.id, movie_id=movie_id, status=True)
-        db.add(like)
-    await db.commit()
-    await db.refresh(like)
-
-    return like
+    return await like_movie_service(movie_id, user.id, db)
 
 
 @router.post("/{movie_id}/comments", response_model=CommentResponseSchema)
@@ -138,23 +121,7 @@ async def create_comment(
     db: AsyncSession = Depends(get_db),
     user: UserModel = Depends(get_current_user),
 ):
-    result = await db.execute(select(MovieModel).filter(MovieModel.id == movie_id))
-    movie = result.scalars().first()
-    if not movie:
-        raise HTTPException(status_code=404, detail="Movie not found")
-
-    new_comment = CommentModel(
-        content=comment_data.content,
-        created_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-        user_id=user.id,
-        movie_id=movie_id,
-    )
-
-    db.add(new_comment)
-    await db.commit()
-    await db.refresh(new_comment)
-
-    return new_comment
+    return await create_comment_service(movie_id, comment_data.content, user.id, db)
 
 
 @router.post("/{movie_id}/comments/{comment_id}/like")
@@ -164,39 +131,14 @@ async def like_comment(
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     user: UserModel = Depends(get_current_user),
-):
-    result = await db.execute(
-        select(CommentModel).filter(CommentModel.id == comment_id)
+) -> dict:
+    like, notification_message = await like_comment_service(
+        movie_id, comment_id, user.id, db
     )
-    comment = result.scalars().first()
-    if not comment:
-        raise HTTPException(status_code=404, detail="Comment not found")
-
-    if comment.movie_id != movie_id:
-        raise HTTPException(
-            status_code=404, detail="Comment does not belong to the specified movie"
-        )
-
-    result = await db.execute(
-        select(LikeCommentModel).filter_by(user_id=user.id, comment_id=comment_id)
-    )
-    like = result.scalars().first()
-
-    if like:
-        like.status = not like.status
-    else:
-        like = LikeCommentModel(user_id=user.id, comment_id=comment_id, status=True)
-        db.add(like)
-
-    await db.commit()
-    await db.refresh(like)
 
     if like.status:
-        notification_message = (
-            f"Your comment on movie {comment.movie_id} has been liked!"
-        )
         background_tasks.add_task(
-            send_notification, comment.user_id, notification_message, db
+            send_notification, like.comment_id, notification_message, db
         )
 
     return {"status": "success", "liked": like.status}
@@ -213,35 +155,16 @@ async def reply_to_comment(
     db: AsyncSession = Depends(get_db),
     user: UserModel = Depends(get_current_user),
 ):
-
-    result = await db.execute(select(MovieModel).filter(MovieModel.id == movie_id))
-    movie = result.scalars().first()
-    if not movie:
-        raise HTTPException(status_code=404, detail="Movie not found")
-
-    result = await db.execute(
-        select(CommentModel).filter(CommentModel.id == comment_id)
-    )
-    comment = result.scalars().first()
-    if not comment:
-        raise HTTPException(status_code=404, detail="Comment not found")
-
-    reply_content = f"Reply to comment {comment_id}: {content.content}"
-
-    new_reply = CommentModel(
-        content=reply_content,
-        created_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-        user_id=user.id,
+    new_reply, notification_message = await reply_to_comment_service(
         movie_id=movie_id,
+        comment_id=comment_id,
+        content=content,
+        user_id=user.id,
+        db=db,
     )
 
-    db.add(new_reply)
-    await db.commit()
-    await db.refresh(new_reply)
-
-    notification_message = f"Your comment on movie {movie_id} has received a reply!"
     background_tasks.add_task(
-        send_notification, comment.user_id, notification_message, db
+        send_notification, new_reply.user_id, notification_message, db
     )
 
     return CommentResponseSchema(
@@ -253,15 +176,12 @@ async def reply_to_comment(
     )
 
 
-@router.get("/notifications")
+@router.get("/notifications/", response_model=NotificationsResponseSchema)
 async def get_notifications(
     db: AsyncSession = Depends(get_db),
     user: UserModel = Depends(get_current_user),
 ):
-    result = await db.execute(
-        select(NotificationModel).filter(NotificationModel.user_id == user.id)
-    )
-    notifications = result.scalars().all()
+    notifications = await get_notifications_service(db, user)
 
     return {"status": "success", "notifications": notifications}
 
@@ -283,10 +203,14 @@ async def mark_notification_as_read(
     if not notification:
         raise HTTPException(status_code=404, detail="Notification not found")
 
-    notification.is_read = True
+    notification.is_read = not notification.is_read
     await db.commit()
+    await db.refresh(notification)
 
-    return {"status": "success", "message": "Notification marked as read"}
+    return {
+        "status": "success",
+        "message": f"Notification marked as {'read' if notification.is_read else 'unread'}",
+    }
 
 
 @router.post("/{movie_id}/favorite")
@@ -387,27 +311,5 @@ async def rate_movie(
     ),
     session: AsyncSession = Depends(get_db),
     current_user: UserModel = Depends(get_current_user),
-):
-    query = select(MovieModel).where(MovieModel.id == movie_id)
-    movie = (await session.execute(query)).scalar()
-
-    if not movie:
-        raise HTTPException(status_code=404, detail="Movie not found")
-
-    rating_query = select(RatingModel).where(
-        RatingModel.user_id == current_user.id, RatingModel.movie_id == movie_id
-    )
-    existing_rating = (await session.execute(rating_query)).scalar()
-
-    if existing_rating:
-        if existing_rating.rating != rating:
-            existing_rating.rating = rating
-            await session.commit()
-    else:
-        new_rating = RatingModel(
-            user_id=current_user.id, movie_id=movie_id, rating=rating
-        )
-        session.add(new_rating)
-        await session.commit()
-
-    return {"message": "Rating submitted successfully", "rating": rating}
+) -> dict:
+    return await rate_movie_service(movie_id, rating, current_user.id, session)

@@ -1,4 +1,6 @@
 # isort: skip_file
+from datetime import datetime
+from typing import List
 
 from fastapi import HTTPException, status
 from sqlalchemy import func, select, asc, desc
@@ -13,6 +15,11 @@ from database import (
     StarModel,
     DirectorModel,
     GenreModel,
+    RatingModel,
+    LikeMovieModel,
+    CommentModel,
+    LikeCommentModel,
+    UserModel,
 )
 from schemas.genre import GenreCreateUpdateResponseSchema
 from schemas.movies import (
@@ -21,6 +28,8 @@ from schemas.movies import (
     MovieCreateRequestSchema,
     MovieCreateResponseSchema,
     MovieUpdateRequestSchema,
+    NotificationResponseSchema,
+    CommentCreateSchema,
 )
 from schemas.star import StarListSchema
 
@@ -317,7 +326,194 @@ def sort_favorites(query, sort_by: str, sort_order: str):
     return query
 
 
-async def send_notification(user_id: int, message: str, db: AsyncSession):
-    notification = NotificationModel(user_id=user_id, message=message)
+async def send_notification(comment_id: int, message: str, db: AsyncSession):
+    result = await db.execute(
+        select(CommentModel).filter(CommentModel.id == comment_id)
+    )
+    comment = result.scalars().first()
+
+    if not comment:
+        return
+
+    notification = NotificationModel(user_id=comment.user_id, message=message)
     db.add(notification)
     await db.commit()
+
+
+async def rate_movie_service(
+    movie_id: int, rating: int, current_user_id: int, session: AsyncSession
+):
+    query = select(MovieModel).where(MovieModel.id == movie_id)
+    movie = (await session.execute(query)).scalar()
+
+    if not movie:
+        raise HTTPException(status_code=404, detail="Movie not found")
+
+    rating_query = select(RatingModel).where(
+        RatingModel.user_id == current_user_id, RatingModel.movie_id == movie_id
+    )
+    existing_rating = (await session.execute(rating_query)).scalar()
+
+    if existing_rating:
+        if existing_rating.rating != rating:
+            existing_rating.rating = rating
+            await session.commit()
+    else:
+        new_rating = RatingModel(
+            user_id=current_user_id, movie_id=movie_id, rating=rating
+        )
+        session.add(new_rating)
+        await session.commit()
+
+    return {"message": "Rating submitted successfully", "rating": rating}
+
+
+async def like_movie_service(movie_id: int, user_id: int, session: AsyncSession):
+    movie_query = select(MovieModel).where(MovieModel.id == movie_id)
+    movie = (await session.execute(movie_query)).scalar()
+
+    if not movie:
+        raise HTTPException(status_code=404, detail="Movie not found")
+
+    like_query = select(LikeMovieModel).where(
+        LikeMovieModel.user_id == user_id, LikeMovieModel.movie_id == movie_id
+    )
+    like = (await session.execute(like_query)).scalar()
+
+    if like:
+        like.status = not like.status
+    else:
+        like = LikeMovieModel(user_id=user_id, movie_id=movie_id, status=True)
+        session.add(like)
+
+    await session.commit()
+    await session.refresh(like)
+
+    return like
+
+
+async def create_comment_service(
+    movie_id: int, comment_content: str, user_id: int, session: AsyncSession
+):
+    movie_query = select(MovieModel).where(MovieModel.id == movie_id)
+    movie = (await session.execute(movie_query)).scalar()
+
+    if not movie:
+        raise HTTPException(status_code=404, detail="Movie not found")
+
+    new_comment = CommentModel(
+        content=comment_content,
+        created_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+        user_id=user_id,
+        movie_id=movie_id,
+    )
+
+    session.add(new_comment)
+    await session.commit()
+    await session.refresh(new_comment)
+
+    return new_comment
+
+
+async def like_comment_service(
+    movie_id: int,
+    comment_id: int,
+    user_id: int,
+    session: AsyncSession,
+):
+    result = await session.execute(
+        select(CommentModel).filter(CommentModel.id == comment_id)
+    )
+    comment = result.scalars().first()
+
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comment not found")
+
+    if comment.movie_id != movie_id:
+        raise HTTPException(
+            status_code=404, detail="Comment does not belong to the specified movie"
+        )
+
+    result = await session.execute(
+        select(LikeCommentModel).filter_by(user_id=user_id, comment_id=comment_id)
+    )
+    like = result.scalars().first()
+
+    if like:
+        like.status = not like.status
+    else:
+        like = LikeCommentModel(user_id=user_id, comment_id=comment_id, status=True)
+        session.add(like)
+
+    await session.commit()
+    await session.refresh(like)
+
+    truncated_comment_content = (
+        comment.content[:50] + "..." if len(comment.content) > 50 else comment.content
+    )
+    notification_message = f"Your comment '{truncated_comment_content}' has been liked!"
+
+    return like, notification_message
+
+
+async def get_notifications_service(
+    db: AsyncSession, user: UserModel
+) -> List[NotificationResponseSchema]:
+    result = await db.execute(
+        select(NotificationModel).filter(NotificationModel.user_id == user.id)
+    )
+    notifications = result.scalars().all()
+
+    if not notifications:
+        raise HTTPException(status_code=404, detail="No notifications found")
+    to_return = [
+        NotificationResponseSchema(
+            id=notification.id,
+            message=notification.message,
+            is_read=notification.is_read,
+        )
+        for notification in notifications
+    ]
+    return to_return
+
+
+async def reply_to_comment_service(
+    movie_id: int,
+    comment_id: int,
+    content: CommentCreateSchema,
+    user_id: int,
+    db: AsyncSession,
+):
+    result = await db.execute(select(MovieModel).filter(MovieModel.id == movie_id))
+    movie = result.scalars().first()
+    if not movie:
+        raise HTTPException(status_code=404, detail="Movie not found")
+
+    result = await db.execute(
+        select(CommentModel).filter(CommentModel.id == comment_id)
+    )
+    comment = result.scalars().first()
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comment not found")
+
+    reply_content = f"Reply to comment {comment_id}: {content.content}"
+
+    new_reply = CommentModel(
+        content=reply_content,
+        created_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+        user_id=user_id,
+        movie_id=movie_id,
+    )
+
+    db.add(new_reply)
+    await db.commit()
+    await db.refresh(new_reply)
+
+    truncated_comment_content = (
+        comment.content[:50] + "..." if len(comment.content) > 50 else comment.content
+    )
+    notification_message = (
+        f"Your comment '{truncated_comment_content}' has received a reply!"
+    )
+
+    return new_reply, notification_message

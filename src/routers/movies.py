@@ -4,23 +4,18 @@ from datetime import datetime
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy import func
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from database import (
     CommentModel,
-    DirectorModel,
     FavoritesModel,
-    GenreModel,
     LikeCommentModel,
     LikeMovieModel,
     MovieModel,
     NotificationModel,
     RatingModel,
-    StarModel,
     UserModel,
-    CertificationModel,
 )
 from dependencies import get_current_user, get_db
 from schemas.movies import (
@@ -29,7 +24,7 @@ from schemas.movies import (
     LikeResponseSchema,
     MovieListResponseSchema,
     MovieDetailResponseSchema,
-    MovieCreateUpdateResponseSchema,
+    MovieCreateResponseSchema,
     MovieCreateRequestSchema,
     MovieUpdateRequestSchema,
 )
@@ -68,7 +63,7 @@ async def get_movies(
     )
 
 
-@router.post("/", response_model=MovieCreateUpdateResponseSchema)
+@router.post("/", response_model=MovieCreateResponseSchema)
 async def create_movie(
     movie_data: MovieCreateRequestSchema,
     db: AsyncSession = Depends(get_db),
@@ -150,7 +145,7 @@ async def create_comment(
 
     new_comment = CommentModel(
         content=comment_data.content,
-        created_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),  # Поточний час
+        created_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
         user_id=user.id,
         movie_id=movie_id,
     )

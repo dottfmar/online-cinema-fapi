@@ -42,7 +42,7 @@ class CertificationSchema(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class MovieCreateUpdateResponseSchema(BaseModel):
+class MovieCreateResponseSchema(BaseModel):
     id: int
     name: str = Field(..., max_length=255)
     uuid: uuid.UUID

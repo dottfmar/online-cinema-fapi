@@ -19,7 +19,7 @@ from schemas.movies import (
     DirectorResponseSchema,
     MovieDetailResponseSchema,
     MovieCreateRequestSchema,
-    MovieCreateUpdateResponseSchema,
+    MovieCreateResponseSchema,
     MovieUpdateRequestSchema,
 )
 from schemas.star import StarListSchema
@@ -166,7 +166,7 @@ async def get_movie_by_id_service(
 
 async def create_movie_service(
     movie_data: MovieCreateRequestSchema, db: AsyncSession
-) -> MovieCreateUpdateResponseSchema:
+) -> MovieCreateResponseSchema:
     existing_stmt = select(MovieModel).where(
         (MovieModel.name == movie_data.name),
         (MovieModel.year == movie_data.year),
@@ -244,7 +244,7 @@ async def create_movie_service(
         await db.commit()
         await db.refresh(new_movie, ["genres", "directors", "stars"])
 
-        return MovieCreateUpdateResponseSchema.model_validate(new_movie)
+        return MovieCreateResponseSchema.model_validate(new_movie)
 
     except IntegrityError:
         await db.rollback()

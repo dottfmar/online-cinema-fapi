@@ -80,7 +80,9 @@ async def get_movies(
 async def create_movie(
     movie_data: MovieCreateRequestSchema,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ):
+    await check_admin_or_moderator(current_user)
     return await create_movie_service(movie_data, db)
 
 

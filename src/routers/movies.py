@@ -200,7 +200,7 @@ async def create_movie(
 
 
 @router.patch(
-    "/movies/{movie_id}",
+    "/{movie_id}",
     response_model=dict,
     status_code=status.HTTP_200_OK,
     summary="Update an existing movie",
@@ -270,7 +270,7 @@ async def update_movie(
 
 
 @router.delete(
-    "/movies/{movie_id}",
+    "/{movie_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a movie",
     description=(
@@ -1043,7 +1043,7 @@ async def get_favorites(
 
 
 @router.post(
-    "/{movie_id}/rate/",
+    "/{movie_id}/rate",
     status_code=status.HTTP_200_OK,
     summary="Rate a movie",
     description=(

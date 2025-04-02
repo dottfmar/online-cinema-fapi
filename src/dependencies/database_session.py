@@ -13,7 +13,7 @@ if not DATABASE_URL:
     raise ValueError("DATABASE_URL is not set in the environment variables")
 
 # Creating an asynchronous engine
-engine = create_async_engine(DATABASE_URL, echo=True)
+engine = create_async_engine(DATABASE_URL)
 
 # Creating a session factory
 async_session_maker = async_sessionmaker(

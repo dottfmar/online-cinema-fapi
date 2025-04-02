@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional
+from typing import List
 
 from pydantic import BaseModel
 
@@ -27,7 +27,7 @@ class PaymentSchema(BaseModel):
     status: PaymentStatus
     amount: float
     external_payment_id: str | None
-    payment_items: Optional[List[PaymentItemSchema]] = []
+    items: List[PaymentItemSchema]
 
     class Config:
         orm_mode = True

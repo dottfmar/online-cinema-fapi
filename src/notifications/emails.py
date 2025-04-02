@@ -141,3 +141,17 @@ class EmailSender(EmailSenderInterface):
         html_content = template.render(email=email, payment_id=payment_id)
         subject = "Payment Successful"
         await self._send_email(email, subject, html_content)
+
+    # def send_successfully_payment_email(self, email: str,
+    #                                     payment_id: int) -> None:
+    #     template = self._env.get_template(
+    #         self._successfully_payment_email_template_name)
+    #     html_content = template.render(email=email, payment_id=payment_id)
+    #     subject = "Payment Successful"
+    #
+    #     loop = asyncio.get_event_loop()
+    #     if loop.is_running():
+    #         asyncio.create_task(self._send_email(email, subject, html_content))
+    #     else:
+    #         loop.run_until_complete(
+    #             self._send_email(email, subject, html_content))

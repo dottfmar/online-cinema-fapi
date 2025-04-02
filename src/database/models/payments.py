@@ -2,6 +2,7 @@
 from __future__ import annotations
 import os
 from datetime import datetime
+from typing import List
 
 import stripe
 from sqlalchemy import DECIMAL, DateTime, Enum, ForeignKey, Integer, String, func
@@ -35,7 +36,7 @@ class PaymentModel(Base):
     order: Mapped["OrderModel"] = relationship(  # noqa: F821
         "OrderModel", back_populates="payments"
     )  # noqa: F821
-    items: Mapped["PaymentItemModel"] = relationship(
+    items: Mapped[List["PaymentItemModel"]] = relationship(
         "PaymentItemModel", back_populates="payments"
     )
 

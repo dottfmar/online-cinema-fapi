@@ -3,8 +3,6 @@ from typing import List, Optional
 
 from pydantic import BaseModel
 
-# from sqlalchemy import DateTime
-
 
 class CartItemSchema(BaseModel):
     id: Optional[int]

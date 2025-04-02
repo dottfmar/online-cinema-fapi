@@ -75,7 +75,6 @@ async def remove_movie_from_cart(
     **Errors:**
     - 404: If the movie is not found in the cart.
     """
-    # Using service function to remove movie from the cart
     try:
         cart = await CartService.remove_movie_from_cart_service(
             current_user, movie_id, db
@@ -100,7 +99,6 @@ async def clear_cart(
     **Errors:**
     - 404: If the user's cart does not exist.
     """
-    # Using service function to clear the cart
     try:
         cart = await CartService.clear_cart_service(current_user, db)
     except ValueError as e:
@@ -123,7 +121,6 @@ async def checkout_cart(
     **Errors:**
     - 400: If there was an error during the checkout process.
     """
-    # Using service function to check out the cart
     try:
         cart = await CartService.checkout_cart_service(current_user, db)
     except ValueError as e:

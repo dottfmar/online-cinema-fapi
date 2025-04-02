@@ -58,7 +58,6 @@ async def get_order(
 
     Returns the details of the specified order if it belongs to the current user.
     """
-    # Find an order by ID
     order = await OrderService.get_order_service(db, current_user, order_id)
 
     if not order:
@@ -139,7 +138,6 @@ async def pay_order(
     if order.status != OrderStatusEnum.PENDING:
         raise HTTPException(status_code=400, detail="Order is already paid or canceled")
 
-    # Here you need to add real payment logic via Stripe
     order.status = OrderStatusEnum.PAID
     await db.commit()
 
@@ -167,15 +165,12 @@ async def update_order(
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
 
-    # Updating order data
     order.total_amount = Decimal(
         sum(item.price_at_order for item in order_data.order_items)
     )
     await db.commit()
 
-    # Update order items (if changed)
     for item in order_data.order_items:
-        # Use select to find the order item
         query = select(OrderItemModel).filter(
             OrderItemModel.order_id == order.id,
             OrderItemModel.movie_id == item.movie_id,
@@ -186,7 +181,6 @@ async def update_order(
         if existing_item:
             existing_item.price_at_order = Decimal(item.price_at_order)
         else:
-            # If the item does not exist in the order, create a new one
             new_item = OrderItemModel(
                 order_id=order.id,
                 movie_id=item.movie_id,
@@ -214,12 +208,10 @@ async def get_order_payments(
 
     Returns a list of payments for the specified order.
     """
-    # Finding an order
     order = await OrderService.get_order_service(db, current_user, order_id)
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
 
-    # Get payment history
     payments = await PaymentService.get_payment_service(db, order_id)
     return [PaymentSchema.from_orm(payment) for payment in payments]
 

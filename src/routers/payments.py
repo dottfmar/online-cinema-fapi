@@ -12,7 +12,6 @@ from database.models.order import OrderStatusEnum
 from dependencies import get_db
 from schemas.payments import PaymentSchema, PaymentStatus
 
-
 config = Config(".env")
 STRIPE_SECRET_KEY = config("STRIPE_SECRET_KEY")
 STRIPE_SUCCESS_URL = config(
@@ -62,13 +61,11 @@ async def create_checkout_session(
     return {"checkout_url": session.url}
 
 
-# Payment success endpoint
 @router.get("/success/")
 async def handle_payment_success():
     return {"message": "Payment successful"}
 
 
-# Payment canceled endpoint
 @router.get("/cancel/")
 async def handle_payment_cancel():
     return {"message": "Payment canceled"}

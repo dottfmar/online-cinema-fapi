@@ -71,6 +71,7 @@ python-jose = "^3.4.0"
 pytest = "^8.3.5"
 pytest-asyncio = "^0.26.0"
 aiosqlite = "^0.21.0"
+iniconfig = "^2.1.0"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

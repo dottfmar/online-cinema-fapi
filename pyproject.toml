@@ -4,7 +4,8 @@ version = "0.1.0"
 description = ""
 authors = [
     "Mariana Lishchynska <lishchynska.m@gmail.com>",
-    "Pastukhov Oleksii <oleksii.pastukhov.py@gmail.com>"
+    "Pastukhov Oleksii <oleksii.pastukhov.py@gmail.com>",
+    "Barabanov Oleksandr <oleksandr.barabanov.py@gmail.com>"
 ]
 readme = "README.md"
 
@@ -67,6 +68,9 @@ flower = "^2.0.1"
 pillow = "^11.1.0"
 python-multipart = "^0.0.20"
 python-jose = "^3.4.0"
+pytest = "^8.3.5"
+pytest-asyncio = "^0.26.0"
+aiosqlite = "^0.21.0"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

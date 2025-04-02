@@ -6,6 +6,8 @@ from fastapi import FastAPI
 
 from routers import (
     accounts_router,
+    cart_router,
+    order_router,
     genre_router,
     movies_router,
     payment_router,
@@ -19,6 +21,8 @@ app = FastAPI(
 )
 app.include_router(payment_router)
 app.include_router(accounts_router)
+app.include_router(order_router)
+app.include_router(cart_router)
 app.include_router(genre_router)
 
 app.include_router(accounts_router)

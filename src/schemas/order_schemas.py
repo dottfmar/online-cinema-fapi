@@ -8,7 +8,7 @@ from database.models.order import OrderStatusEnum
 
 
 class OrderItemSchema(BaseModel):
-    id: int
+    id: Optional[int]
     movie_id: int
     price_at_order: Decimal
 
@@ -17,9 +17,9 @@ class OrderItemSchema(BaseModel):
 
 
 class OrderSchema(BaseModel):
-    id: int
+    id: Optional[int]
     user_id: int
-    created_at: datetime
+    created_at: Optional[datetime]
     status: OrderStatusEnum
     total_amount: Optional[Decimal] = None
     order_items: List[OrderItemSchema]
@@ -41,11 +41,3 @@ class OrderCreateSchema(BaseModel):
 
     class Config:
         from_attributes = True
-
-
-class OrderStatisticsSchema(BaseModel):
-    total_orders: int
-    total_amount: Decimal
-
-    class Config:
-        orm_mode = True

@@ -22,7 +22,7 @@ from security.http import get_token
 from security.interfaces import JWTAuthManagerInterface
 from storages import S3StorageInterface
 
-router = APIRouter()
+router = APIRouter(tags=["User Profiles"])
 
 
 @router.post(

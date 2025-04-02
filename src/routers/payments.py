@@ -12,9 +12,6 @@ from database.models.order import OrderStatusEnum
 from dependencies import get_db
 from schemas.payments import PaymentSchema, PaymentStatus
 
-# from sqlalchemy.testing import db
-# from starlette.responses import JSONResponse
-
 
 config = Config(".env")
 STRIPE_SECRET_KEY = config("STRIPE_SECRET_KEY")

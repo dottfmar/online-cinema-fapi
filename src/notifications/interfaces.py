@@ -50,9 +50,7 @@ class EmailSenderInterface(ABC):
         pass
 
     @abstractmethod
-    async def send_successfully_payment_email(
-        self, email: str, payment_id: int
-    ) -> None:
+    def send_successfully_payment_email(self, email: str, payment_id: int) -> None:
         """
         Asynchronously send an email confirming that a payment has been successfully processed.
         Args:

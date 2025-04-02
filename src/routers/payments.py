@@ -1,186 +1,154 @@
-# isort: skip_file
-from __future__ import annotations
-
-import json
-import os
-
 import stripe
-from dotenv import load_dotenv
-from fastapi import (
-    APIRouter,
-    BackgroundTasks,
-    Depends,
-    HTTPException,
-    Request,
-    responses,
-)
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.orm import selectinload
+from starlette.config import Config
+from starlette.responses import JSONResponse
 
-from config.dependencies import get_successfully_payment_email_notificator
-from database import PaymentModel, PaymentItemModel, OrderModel
+from config.dependencies import get_accounts_email_notificator
+from database import OrderModel, PaymentItemModel, PaymentModel
+from database.models.order import OrderStatusEnum
 from dependencies import get_db
-from notifications import EmailSenderInterface
-from schemas.payments import PaymentCreateSchema, PaymentSchema, PaymentStatus
+from schemas.payments import PaymentSchema, PaymentStatus
 
 
-load_dotenv()
-router = APIRouter(tags=["Payment"])
+config = Config(".env")
+STRIPE_SECRET_KEY = config("STRIPE_SECRET_KEY")
+STRIPE_SUCCESS_URL = config(
+    "STRIPE_SUCCESS_URL", default="http://127.0.0.1:8000/success"
+)
+STRIPE_CANCEL_URL = config("STRIPE_CANCEL_URL", default="http://127.0.0.1:8000/cancel")
+WEBHOOK_SECRET_KEY = config("WEBHOOK_SECRET_KEY")
+BASE_URL = "http://127.0.0.1:8000"
 
-stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+stripe.api_key = STRIPE_SECRET_KEY
 
-BASE_URL = os.getenv("BASE_URL") or "http://127.0.0.1:8000"
+router = APIRouter()
 
 
-@router.get("/checkout/")
-async def create_checkout_session(price: int = 10):
-    checkout_session = stripe.checkout.Session.create(
-        line_items=[
-            {
-                "price_data": {
-                    "currency": "usd",
-                    "product_data": {
-                        "name": "FastAPI Stripe Checkout",
-                    },
-                    "unit_amount": price * 100,
+@router.post("/create-checkout-session/")
+async def create_checkout_session(
+    order_id: int, session: AsyncSession = Depends(get_db)
+):
+    result = await session.execute(select(OrderModel).where(OrderModel.id == order_id))
+    order = result.scalar_one_or_none()
+
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    line_items = [
+        {
+            "price_data": {
+                "currency": "usd",
+                "unit_amount": int(order.total_amount * 100),
+                "product_data": {
+                    "name": f"Order #{order.id}",
+                    "description": "Purchase of movies",
                 },
-                "quantity": 1,
-            }
-        ],
-        metadata={"user_id": 3, "email": "abc@gmail.com", "request_id": 1234567890},
+            },
+            "quantity": 1,
+        }
+    ]
+
+    session = stripe.checkout.Session.create(
+        payment_method_types=["card"],
+        line_items=line_items,
         mode="payment",
-        success_url=BASE_URL + "/success/",
-        cancel_url=BASE_URL + "/cancel/",
-        customer_email="ping@fastapitutorial.com",
+        success_url=f"{STRIPE_SUCCESS_URL}?session_id={{CHECKOUT_SESSION_ID}}",
+        cancel_url=STRIPE_CANCEL_URL,
+        metadata={"order_id": str(order.id)},
     )
-    return responses.RedirectResponse(checkout_session.url, status_code=303)
+    return {"checkout_url": session.url}
 
 
+# Payment success endpoint
 @router.get("/success/")
 async def handle_payment_success():
     return {"message": "Payment successful"}
 
 
+# Payment canceled endpoint
 @router.get("/cancel/")
 async def handle_payment_cancel():
     return {"message": "Payment canceled"}
 
 
-@router.post("/payments/", response_model=PaymentSchema)
-async def create_payment(
-    payment_data: PaymentCreateSchema,
-    background_tasks: BackgroundTasks,
-    email_notification: EmailSenderInterface = Depends(
-        get_successfully_payment_email_notificator
-    ),
-    db: AsyncSession = Depends(get_db),
-):
-    payment = PaymentModel(
-        user_id=payment_data.user_id,
-        order_id=payment_data.order_id,
-        amount=payment_data.amount,
-        status=PaymentStatus.SUCCESSFUL,
-    )
-    db.add(payment)
-    await db.commit()
-    await db.refresh(payment)
-
-    payment_items = [
-        PaymentItemModel(
-            payment_id=payment.id,
-            order_item_id=item.order_item_id,
-            price_at_payment=item.price_at_payment,
-        )
-        for item in payment_data.payment_items
-    ]
-    db.add_all(payment_items)
-    await db.commit()
-    order_query = await db.execute(
-        select(OrderModel).filter(OrderModel.id == payment_data.order_id)
-    )
-    order = order_query.scalar()
-
-    if order and order.user:
-        user_email = order.user.email
-        url = BASE_URL + f"/payments/{payment.id}/"
-
-        background_tasks.add_task(
-            email_notification.send_successfully_payment_email, user_email, url
-        )
-
-    return payment
-
-
-@router.get("/payments/{payment_id}", response_model=PaymentSchema)
+@router.get("/payments/{payment_id}/", response_model=PaymentSchema)
 async def get_payment(payment_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
-        select(PaymentModel).filter(PaymentModel.id == payment_id)
+        select(PaymentModel)
+        .options(selectinload(PaymentModel.items))
+        .filter(PaymentModel.id == payment_id)
     )
-    payment = result.scalars().first()
+    payment = result.scalar_one_or_none()
+    print(payment.items)
     if not payment:
         raise HTTPException(status_code=404, detail="Payment not found")
 
     return payment
 
 
-@router.post("/webhook/")
+@router.post("/stripe/webhook/")
 async def stripe_webhook(
     request: Request,
     background_tasks: BackgroundTasks,
-    email_notification: EmailSenderInterface = Depends(
-        get_successfully_payment_email_notificator
-    ),
+    email_notification=Depends(get_accounts_email_notificator),
     db: AsyncSession = Depends(get_db),
 ):
     payload = await request.body()
+    sig_header = request.headers.get("stripe-signature")
 
     try:
-        event = stripe.Event.construct_from(json.loads(payload), stripe.api_key)
+        event = stripe.Webhook.construct_event(payload, sig_header, WEBHOOK_SECRET_KEY)
     except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid payload")
+        return JSONResponse(status_code=400, content={"error": "Invalid payload"})
     except stripe.error.SignatureVerificationError:
-        raise HTTPException(status_code=400, detail="Invalid signature")
+        return JSONResponse(status_code=400, content={"error": "Invalid signature"})
 
     if event["type"] == "checkout.session.completed":
-        payment_data = event["data"]["object"]
-        external_payment_id = payment_data["id"]
-        amount = payment_data["amount_total"] / 100
-        user_id = int(payment_data["metadata"]["user_id"])
-        order_id = int(payment_data["metadata"]["request_id"])
+        session = event["data"]["object"]
+        order_id = int(session["metadata"]["order_id"])
+        print("Payment completed for order ID:", order_id)
 
-        payment = PaymentModel(
-            user_id=user_id,
-            order_id=order_id,
-            amount=amount,
-            status=PaymentStatus.SUCCESSFUL,
-            external_payment_id=external_payment_id,
-        )
-        db.add(payment)
-        await db.commit()
-        await db.refresh(payment)
-
-        payment_items = [
-            PaymentItemModel(
-                payment_id=payment.id,
-                order_item_id=item.order_item_id,
-                price_at_payment=item.price_at_payment,
+        async with db.begin():
+            order_query = await db.execute(
+                select(OrderModel).where(OrderModel.id == order_id)
             )
-            for item in payment_data.payment_items
-        ]
-        db.add_all(payment_items)
-        await db.commit()
+            order = order_query.scalar_one_or_none()
+            if not order:
+                return JSONResponse(
+                    status_code=404, content={"error": "Order not found"}
+                )
 
-        order_query = await db.execute(
-            select(OrderModel).filter(OrderModel.id == payment_data.order_id)
-        )
-        order = order_query.scalar()
+            await db.refresh(order, ["order_items", "user"])
 
-        if order and order.user:
+            order.status = OrderStatusEnum.PAID
+
+            payment = PaymentModel(
+                user_id=order.user_id,
+                order_id=order.id,
+                amount=order.total_amount,
+                status=PaymentStatus.SUCCESSFUL,
+            )
+            db.add(payment)
+            await db.flush()
+
+            payment_items = [
+                PaymentItemModel(
+                    payment_id=payment.id,
+                    order_item_id=item.id,
+                    price_at_payment=item.price_at_order,
+                )
+                for item in order.order_items
+            ]
+            db.add_all(payment_items)
+
+        if order.user:
             user_email = order.user.email
             url = BASE_URL + f"/payments/{payment.id}/"
-
             background_tasks.add_task(
                 email_notification.send_successfully_payment_email, user_email, url
             )
 
-    return {"status": "success"}
+    return JSONResponse(status_code=200, content={"message": "Webhook received"})

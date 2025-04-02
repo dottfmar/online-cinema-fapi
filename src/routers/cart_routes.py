@@ -116,9 +116,9 @@ async def clear_cart(
 
 @router.post("/cart/checkout/", response_model=CartSchema)
 async def checkout_cart(
+    background_tasks: BackgroundTasks,
     current_user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db),
-    background_tasks: BackgroundTasks = Depends(),
 ):
     """
     Checks out the user's cart and processes payment.
